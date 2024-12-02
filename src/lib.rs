@@ -1,112 +1,9 @@
 use iced::{
-    widget::{Button, Column, Container, Row, Text},
-    Element, Length,
+    widget::{Button, Column, Row, Text},
+    Element, Sandbox, Settings,
 };
-
-pub struct Grid {
-    rows: Vec<RowData>,
-}
-
-impl Grid {
-    pub fn new() -> Self {
-        Self { rows: Vec::new() }
-    }
-
-    pub fn get_cell(&mut self, row_index: usize, cell_index: usize) -> Option<&mut Cell> {
-        self.rows.get_mut(row_index).and_then(|row| row.get_mut(cell_index))
-    }
-    //self.rows.push(RowData::default());
-    pub fn get_row(&mut self, row: usize) -> &mut RowData {
-        if self.rows.len() <= row {
-            self.rows.resize(row + 1, RowData::default());
-        }
-        &mut self.rows[row]
-    }
-
-    pub fn row_count(&self) -> usize {
-        self.rows.len() // Assuming `self.rows` is a Vec or something similar
-    }
-
-    pub fn add_row(&mut self) {
-        self.rows.push(RowData::default());
-    }
-
-    pub fn view<'a>(&'a self) -> iced::Element<'a, GridMessage> {
-        let mut content = Column::new().spacing(20);
-
-        for (row_index, row) in self.rows.iter().enumerate() {
-            let mut row_view = Row::new().spacing(10);
-
-            for (cell_index, cell) in row.cells.iter().enumerate() {
-                let cell_view = cell.view().map(move |msg| GridMessage::Cell(row_index, cell_index, msg));
-                row_view = row_view.push(cell_view);
-            }
-
-            content = content.push(row_view);
-        }
-
-        Container::new(content)
-            .width(Length::Fill)
-            .height(Length::Fill)
-            .padding(20)
-            .center_x()
-            .center_y()
-            .into()
-    }
-}
-
-#[derive(Default, Clone)]
-pub struct RowData {
-    cells: Vec<Cell>,
-}
-
-impl RowData {
-    pub fn push(&mut self, config: CellConfig) {
-        self.cells.push(Cell::new(config));
-    }
-    pub fn get_mut(&mut self, index: usize) -> Option<&mut Cell> {
-        self.cells.get_mut(index)
-    }
-}
-
-
-#[derive(Clone)]
-pub struct Cell {
-    config: CellConfig, // Store the configuration instead of the Element
-}
-
-impl Cell {
-    pub fn new(config: CellConfig) -> Self {
-        Self { config }
-    }
-
-    pub fn edit(&mut self, new_config: CellConfig) {
-        self.config = new_config;
-    }
-    pub fn remove(&mut self) {
-        // Logic to remove or clear cell content
-        self.config = CellConfig::Text(String::new()); 
-    }
-
-    pub fn view(&self) -> Element<CellMessage> {
-        match &self.config {
-            CellConfig::Text(content) => Text::new(content.clone()).into(),
-            CellConfig::Button(label) => {
-                Button::new(Text::new(label.clone()))
-                    .on_press(CellMessage::Clicked)
-                    .into()
-            }
-        }
-    }
-}
-
-
-#[derive(Clone)]
-pub enum CellConfig {
-    Text(String),
-    Button(String),
-}
-
+use std::sync::Arc;
+use std::cell::RefCell;
 
 #[derive(Debug, Clone)]
 pub enum CellMessage {
@@ -119,4 +16,130 @@ pub enum CellMessage {
 pub enum GridMessage {
     AddCell(usize),
     Cell(usize, usize, CellMessage),
+}
+
+pub enum Cell<'a> {
+    Text(String),
+    Button {
+        label: String,
+        on_press: CellMessage,
+    },
+    Container(Arc<RefCell<dyn Fn() -> Element<'a, CellMessage> + 'a>>),
+}
+
+impl<'a> Clone for Cell<'a> {
+    fn clone(&self) -> Self {
+        match self {
+            Cell::Text(content) => Cell::Text(content.clone()),
+            Cell::Button { label, on_press } => Cell::Button {
+                label: label.clone(),
+                on_press: on_press.clone(),
+            },
+            Cell::Container(container) => {
+                Cell::Container(Arc::clone(container))
+            }
+        }
+    }
+}
+
+impl Cell<'_> {
+    pub fn view(&self) -> Element<CellMessage> {
+        match self {
+            Cell::Text(content) => Text::new(content.clone()).into(),
+            Cell::Button { label, on_press } => {
+                Button::new(Text::new(label.clone()))
+                    .on_press(on_press.clone())
+                    .into()
+            }
+            Cell::Container(factory) => (factory.borrow())(),
+        }
+    }
+}
+
+#[derive(Default, Clone)]
+pub struct RowData {
+    cells: Vec<Cell<'static>>,
+}
+
+impl RowData {
+    pub fn push_text(&mut self, content: String) {
+        self.cells.push(Cell::Text(content));
+    }
+
+    pub fn push_button(&mut self, label: String, on_press: CellMessage) {
+        self.cells.push(Cell::Button { label, on_press });
+    }
+
+    pub fn push_container<F>(&mut self, factory: F)
+    where
+        F: Fn() -> Element<'static, CellMessage> + 'static,
+    {
+        self.cells.push(Cell::Container(Arc::new(RefCell::new(factory))));
+    }
+
+    pub fn get_mut(&mut self, index: usize) -> Option<&mut Cell<'static>> {
+        self.cells.get_mut(index)
+    }
+}
+
+pub struct Grid {
+    rows: Vec<RowData>,
+}
+
+impl Grid {
+    pub fn new() -> Self {
+        Self { rows: Vec::new() }
+    }
+
+    pub fn get_cell(&mut self, row_index: usize, cell_index: usize) -> Option<&mut Cell<'static>> {
+        self.rows.get_mut(row_index).and_then(|row| row.get_mut(cell_index))
+    }
+
+    pub fn get_row(&mut self, row: usize) -> &mut RowData {
+        if self.rows.len() <= row {
+            self.rows.resize_with(row + 1, RowData::default);
+        }
+        &mut self.rows[row]
+    }
+
+    pub fn row_count(&self) -> usize {
+        self.rows.len()
+    }
+
+    pub fn add_row(&mut self) {
+        self.rows.push(RowData::default());
+    }
+
+    pub fn create_grid<'a>(&'a self) -> Column<'a, GridMessage> {
+        let mut column = Column::new().spacing(10);
+
+        for row_index in 0..self.rows.len() {
+            let mut row_view = Row::new().spacing(10);
+            for cell_index in 0..self.rows[row_index].cells.len() {
+                let cell = &self.rows[row_index].cells[cell_index];
+                let cell_view: Element<GridMessage> = match cell {
+                    Cell::Text(ref text) => {
+                        Text::new(text.clone()).into()
+                    }
+                    Cell::Button { ref label, on_press } => {
+                        Button::new(Text::new(label.clone()))
+                            .on_press(GridMessage::Cell(row_index, cell_index, on_press.clone()))
+                            .into()
+                    }
+                    Cell::Container(factory) => (factory.borrow())().map(move |cell_msg| {
+                        GridMessage::Cell(row_index, cell_index, cell_msg)
+                    }),
+                };
+                row_view = row_view.push(cell_view);
+            }
+            column = column.push(row_view);
+        }
+
+        column
+    }
+
+    pub fn view<'a>(&'a self) -> iced::Element<'a, GridMessage> {
+        self.create_grid()
+            .into()
+    }
 }
