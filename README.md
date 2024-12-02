@@ -10,7 +10,7 @@ To use this library in your project, add it to your `Cargo.toml` as a dependency
 ```toml
 [dependencies]
 iced = "0.12"
-my_grid_app = { path = "path/to/your/library" }
+iced_grid = { path = "<location to iced grid>" }
 ```
 
 Ensure that the `iced` crate is added as a dependency in your `Cargo.toml` if you don't already have it.
