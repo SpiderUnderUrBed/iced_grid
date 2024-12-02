@@ -1,4 +1,4 @@
----
+
 
 # My Grid App Documentation
 
@@ -177,4 +177,3 @@ GridMessage::Cell(row_index, cell_index, CellMessage::Clicked) => {
 
 Contributions to this library are welcome! If you encounter any bugs or have feature requests, feel free to open an issue or submit a pull request.
 
----
