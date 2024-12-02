@@ -42,12 +42,6 @@ impl Grid {
                 row_view = row_view.push(cell_view);
             }
 
-            row_view = row_view.push(
-                Button::new(Text::new("Add Cell"))
-                    .on_press(GridMessage::AddCell(row_index))
-                    .padding(5),
-            );
-
             content = content.push(row_view);
         }
 
