@@ -1,7 +1,6 @@
 
 
-# My Grid App Documentation
-
+# Iced_grid
 This library provides a simple grid-based UI component built with the `iced` crate. It includes functionality for managing rows and cells within a grid, with different cell types like text and buttons.
 
 ## Installation
