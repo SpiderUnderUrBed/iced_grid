@@ -1,10 +1,7 @@
 use iced::{
     widget::{Button, Column, Row, Text},
     Element, Sandbox, Settings,
-    Theme,
-    Renderer,
 };
-
 use std::sync::Arc;
 use std::cell::RefCell;
 
@@ -27,14 +24,7 @@ pub enum Cell<'a> {
         label: String,
         on_press: CellMessage,
     },
-    Container(Option<Element<'a, CellMessage>>),
-}
-fn wrap_in_arc_refcell<'a>(
-    element: &Option<Element<'a, CellMessage, Theme, Renderer>>,
-) -> Option<Arc<RefCell<Element<'a, CellMessage, Theme, Renderer>>>> {
-    element.as_ref().map(|el| {
-        Arc::new(RefCell::new(**el))
-    })
+    Container(Arc<RefCell<dyn Fn() -> Element<'a, CellMessage> + 'a>>),
 }
 
 impl<'a> Clone for Cell<'a> {
@@ -45,17 +35,14 @@ impl<'a> Clone for Cell<'a> {
                 label: label.clone(),
                 on_press: on_press.clone(),
             },
-            Cell::Container(content) => {
-                // Use the wrap_in_arc_refcell function to wrap the content if it's Some
-                let cloned_content = wrap_in_arc_refcell(content);
-                Cell::Container(cloned_content)
+            Cell::Container(container) => {
+                Cell::Container(Arc::clone(container))
             }
         }
     }
 }
 
-impl<'a> Cell<'a> {
-    /// View the cell content as an `Element`
+impl Cell<'_> {
     pub fn view(&self) -> Element<CellMessage> {
         match self {
             Cell::Text(content) => Text::new(content.clone()).into(),
@@ -64,15 +51,10 @@ impl<'a> Cell<'a> {
                     .on_press(on_press.clone())
                     .into()
             }
-            Cell::Container(Some(content)) => content.to_owned(),
-            Cell::Container(None) => Text::new("Empty Container").into(),
+            Cell::Container(factory) => (factory.borrow())(),
         }
     }
-    pub fn into_arc_refcell(self) -> Arc<RefCell<Self>> {
-        Arc::new(RefCell::new(self))
-    }
 }
-
 
 #[derive(Default, Clone)]
 pub struct RowData {
@@ -88,20 +70,15 @@ impl RowData {
         self.cells.push(Cell::Button { label, on_press });
     }
 
-    pub fn push_container(&mut self, content: Option<Element<'static, CellMessage>>) {
-        self.cells.push(Cell::Container(content));
+    pub fn push_container<F>(&mut self, factory: F)
+    where
+        F: Fn() -> Element<'static, CellMessage> + 'static,
+    {
+        self.cells.push(Cell::Container(Arc::new(RefCell::new(factory))));
     }
 
     pub fn get_mut(&mut self, index: usize) -> Option<&mut Cell<'static>> {
         self.cells.get_mut(index)
-    }
-
-    /// Wrap a specific cell in `Arc<RefCell>`
-    pub fn wrap_cell(&mut self, index: usize) -> Option<Arc<RefCell<Cell<'static>>>> {
-        self.cells
-            .get_mut(index)
-            .map(|cell| std::mem::replace(cell, Cell::Text(String::new())).into_arc_refcell())
-
     }
 }
 
@@ -136,12 +113,23 @@ impl Grid {
     pub fn create_grid<'a>(&'a self) -> Column<'a, GridMessage> {
         let mut column = Column::new().spacing(10);
 
-        for (row_index, row) in self.rows.iter().enumerate() {
+        for row_index in 0..self.rows.len() {
             let mut row_view = Row::new().spacing(10);
-            for (cell_index, cell) in row.cells.iter().enumerate() {
-                let cell_view: Element<GridMessage> = cell.view().map(move |cell_msg| {
-                    GridMessage::Cell(row_index, cell_index, cell_msg)
-                });
+            for cell_index in 0..self.rows[row_index].cells.len() {
+                let cell = &self.rows[row_index].cells[cell_index];
+                let cell_view: Element<GridMessage> = match cell {
+                    Cell::Text(ref text) => {
+                        Text::new(text.clone()).into()
+                    }
+                    Cell::Button { ref label, on_press } => {
+                        Button::new(Text::new(label.clone()))
+                            .on_press(GridMessage::Cell(row_index, cell_index, on_press.clone()))
+                            .into()
+                    }
+                    Cell::Container(factory) => (factory.borrow())().map(move |cell_msg| {
+                        GridMessage::Cell(row_index, cell_index, cell_msg)
+                    }),
+                };
                 row_view = row_view.push(cell_view);
             }
             column = column.push(row_view);
@@ -151,6 +139,7 @@ impl Grid {
     }
 
     pub fn view<'a>(&'a self) -> iced::Element<'a, GridMessage> {
-        self.create_grid().into()
+        self.create_grid()
+            .into()
     }
 }
