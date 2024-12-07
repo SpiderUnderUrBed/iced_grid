@@ -3,8 +3,7 @@ use iced_widget::{Theme};
 use iced_core::{Color, Element, Length, Size, Widget, mouse::Cursor, Background};
 use iced_core::layout::Limits;
 
-
-#[derive(Default, Clone)]
+/// A set of rules that dictate the styling of a [`Table`](crate::Table) or [`Grid`](crate::Grid).
 pub trait Catalog {
     type Style: Default + Clone;
 
@@ -12,7 +11,7 @@ pub trait Catalog {
     fn default_style() -> Self::Style;
 }
 
-// Implement Catalog fIsStyleor Theme with a Style containing background color
+// Implement Catalog for Theme with a Style containing background color
 impl Catalog for Theme {
     type Style = Style; // Use our custom Style struct
 
@@ -29,10 +28,6 @@ impl Catalog for Theme {
 pub struct Style {
     pub text_color: Color,        // Text color
     pub background_color: Color,  // Background color
-}
-trait IsStyle: Default + Clone {
-    fn background_color() -> Color;
-    fn text_color() -> Color;
 }
 
 pub(crate) mod wrapper {
@@ -58,9 +53,9 @@ pub(crate) mod wrapper {
         .into()
     }
 
-    
+    // Enum representing different target types
     enum Target {
-        Row(usize), 
+        Row(usize), // Example of how you might use it
     }
 
     impl Target {
@@ -74,17 +69,17 @@ pub(crate) mod wrapper {
         {
             match self {
                 Target::Row(_) => {
-                    
+                    // Customize based on target (e.g., Row)
                     Style {
-                        text_color: Color::BLACK, 
-                        background_color: Some(Color::from_rgb(0.1, 0.1, 0.1)), 
+                        text_color: Color::BLACK, // Example for text color
+                        background_color: Color::from_rgb(0.1, 0.1, 0.1), // Example background for row
                     }
                 }
             }
         }
     }
 
-    
+    // Wrapper struct holding the content, target, and style
     pub struct Wrapper<'a, Message, Theme, Renderer>
     where
         Renderer: iced_core::Renderer,
@@ -95,7 +90,7 @@ pub(crate) mod wrapper {
         style: <Theme as Catalog>::Style,
     }
 
-    
+    // Implementing the Widget trait for the Wrapper struct
     impl<'a, Message, Theme, Renderer> Widget<Message, Theme, Renderer> for Wrapper<'a, Message, Theme, Renderer>
     where
         Renderer: iced_core::Renderer,
@@ -124,29 +119,29 @@ pub(crate) mod wrapper {
             cursor: Cursor,
             viewport: &iced_core::Rectangle,
         ) {
-            
-            let background = Background::Color(self.style.background_color); 
+            // Use the background color from the style
+            let background = Background::Color(self.style.background_color); // Use background_color from style
 
-            
+            // Draw the background
             renderer.fill_quad(
                 iced_core::renderer::Quad {
                     bounds: layout.bounds(),
                     border: iced_core::Border {
-                        width: 0.0, 
-                        radius: 0.0.into(), 
-                        color: Color::TRANSPARENT, 
+                        width: 0.0, // Set desired width
+                        radius: 0.0.into(), // Set border radius
+                        color: Color::TRANSPARENT, // Adjust color as needed
                     },
                     shadow: Default::default(),
                 },
                 background,
             );
 
-            
+            // Render the content
             self.content.as_widget().draw(state, renderer, theme, style, layout, cursor, viewport)
         }
     }
 
-    
+    // Implementing conversion to `Element`
     impl<'a, Message, Theme, Renderer> From<Wrapper<'a, Message, Theme, Renderer>> for Element<'a, Message, Theme, Renderer>
     where
         Renderer: iced_core::Renderer + 'a,
@@ -158,4 +153,3 @@ pub(crate) mod wrapper {
         }
     }
 }
-
