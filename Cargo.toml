@@ -7,3 +7,5 @@ edition = "2021"
 
 [dependencies]
 iced = "0.12"
+iced_core = "0.12"
+iced_widget = "0.12"

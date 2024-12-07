@@ -1,7 +1,14 @@
 use iced::{
-    widget::{Button, Column, Row, Text},
+    Theme,
+    widget::{Button, Column, Row, Text, container},
     Element, Sandbox, Settings,
 };
+
+// use style::Catalog;
+mod style;
+//use style::Catalog;
+use crate::style::Catalog;
+
 use std::sync::Arc;
 use std::cell::RefCell;
 
@@ -82,15 +89,26 @@ impl RowData {
     }
 }
 
-pub struct Grid {
+pub struct Grid
+ where
+  Theme: Catalog,
+ {
     rows: Vec<RowData>,
+    style: <Theme as Catalog>::Style,
 }
 
 impl Grid {
     pub fn new() -> Self {
-        Self { rows: Vec::new() }
+        Self {
+            rows: Vec::new(),
+            style: Default::default(), // Use default value
+        }
     }
 
+    // pub fn set_style(&mut self, new_style: <Theme as style::Catalog>::Style) {
+    //     self.style = new_style;
+    // }
+    
     pub fn get_cell(&mut self, row_index: usize, cell_index: usize) -> Option<&mut Cell<'static>> {
         self.rows.get_mut(row_index).and_then(|row| row.get_mut(cell_index))
     }
