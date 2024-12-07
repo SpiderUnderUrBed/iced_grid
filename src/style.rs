@@ -5,50 +5,35 @@ use iced_core::layout::Limits;
 
 
 #[derive(Default, Clone)]
-pub struct Style {
-    pub text_color: Color,            
-    pub background_color: Option<Color>,
-}
-
-impl Style {
-    pub fn background_color_or_default(&self) -> Color {
-        self.background_color
-            .unwrap_or(Color::from_rgb(0.2, 0.8, 0.2))
-    }
-}
 pub trait Catalog {
     type Style: Default + Clone;
 
+    // Optionally, you can add default values for style-related properties here if needed
     fn default_style() -> Self::Style;
 }
 
+// Implement Catalog fIsStyleor Theme with a Style containing background color
 impl Catalog for Theme {
-    type Style = Style; 
+    type Style = Style; // Use our custom Style struct
 
     fn default_style() -> Self::Style {
         Style {
             text_color: Color::WHITE,
-            background_color: None,
+            background_color: Color::from_rgb(0.2, 0.8, 0.2), // Default background color
         }
     }
 }
 
-
-pub trait IsStyle: Default + Clone {
-    fn background_color(&self) -> Color;
-    fn text_color(&self) -> Color;
+// Style struct containing text color and background color
+#[derive(Default, Clone)]
+pub struct Style {
+    pub text_color: Color,        // Text color
+    pub background_color: Color,  // Background color
 }
-
-impl IsStyle for Style {
-    fn background_color(&self) -> Color {
-        self.background_color_or_default()
-    }
-
-    fn text_color(&self) -> Color {
-        self.text_color
-    }
+trait IsStyle: Default + Clone {
+    fn background_color() -> Color;
+    fn text_color() -> Color;
 }
-
 
 pub(crate) mod wrapper {
     use super::*;
