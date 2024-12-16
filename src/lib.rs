@@ -162,6 +162,31 @@ impl<'a, Message, Theme: style::Catalog> Grid<Message, Theme> {
             None
         }
     }
+    pub fn add_rows(&mut self, count: usize) {
+        for _ in 0..count {
+            self.rows.push(RowData::default());
+        }
+    }
+
+    
+    
+    pub fn add_cells_to_row(&mut self, row_index: usize, count: usize) {
+        let row = self.get_row(row_index); 
+        for _ in 0..count {
+            row.cells.push(Cell::Text("Default".to_string())); 
+        }
+    }
+
+    
+    pub fn add_cells_to_all_rows(&mut self, count: usize) {
+        for row in &mut self.rows {
+            for _ in 0..count {
+                println!("test");
+                row.cells.push(Cell::Text("Default".to_string())); 
+            }
+        }
+    }
+
 
     pub fn create_grid(&'a self) -> Column<'a, GridMessage> {
         let mut column = Column::new().spacing(10);
