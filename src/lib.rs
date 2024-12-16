@@ -1,15 +1,17 @@
 use iced::{
     widget::{Button, Text},
-    Element,
+    Element, Theme,
 };
-//use iced::Element;
+
 use iced_widget::{
-    scrollable, Column, Row, 
-//    Text, Button
+    container, scrollable, Column, Row 
+
 };
 
 use std::sync::Arc;
 use std::cell::RefCell;
+
+use style::wrapper::{Target, Wrapper};
 pub use style::Catalog;
 pub mod style;
 
@@ -93,7 +95,7 @@ impl RowData {
     }
 }
 
-   // use super::{Cell, GridMessage, RowData, style};
+   
 
 pub struct Grid<Message, Theme>
 where
@@ -104,10 +106,35 @@ where
     on_sync: fn(scrollable::AbsoluteOffset) -> Message,
 }
 
+impl<'a, Message, Theme, Renderer> From<Grid<Message, Theme>>
+for Element<'a, Message, Theme, Renderer>
+where
+   // <Theme as style::Catalog>::Style 
+    Renderer: iced_core::Renderer + 'a,
+    Theme: style::Catalog + container::Catalog + scrollable::Catalog + 'a,
+    Message: 'a + Clone,
+{
+    fn from(grid: Grid<Message, Theme>) -> Self {
+        let style = grid.style.clone(); // Clone the style to resolve the conflict
+    
+        Element::new(Wrapper { 
+            content: grid.into(),
+            target: Target::style,
+            style,
+        })
+    }    
+}
+
+
 impl<'a, Message, Theme: style::Catalog> Grid<Message, Theme> {
     pub fn new(rows: Vec<RowData>, style: <Theme as style::Catalog>::Style, on_sync: fn(scrollable::AbsoluteOffset) -> Message ) -> Self {
         Self { rows, style, on_sync }
     }
+    
+    pub fn style(&mut self, style: impl Into<<Theme as style::Catalog>::Style>) {
+        self.style = style.into();
+    }
+    
 
     pub fn get_cell(&mut self, row_index: usize, cell_index: usize) -> Option<&mut Cell<'static>> {
         self.rows.get_mut(row_index).and_then(|row| row.get_mut(cell_index))
@@ -136,7 +163,7 @@ impl<'a, Message, Theme: style::Catalog> Grid<Message, Theme> {
         }
     }
 
-    pub fn create_Grid(&'a self) -> Column<'a, GridMessage> {
+    pub fn create_grid(&'a self) -> Column<'a, GridMessage> {
         let mut column = Column::new().spacing(10);
 
         for row_index in 0..self.rows.len() {
@@ -165,7 +192,7 @@ impl<'a, Message, Theme: style::Catalog> Grid<Message, Theme> {
     }
 
     pub fn view(&'a self) -> iced::Element<'a, GridMessage> {
-        self.create_Grid()
+        self.create_grid()
             .into()
     }
 }

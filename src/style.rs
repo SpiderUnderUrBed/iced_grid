@@ -1,4 +1,6 @@
+use iced::Color;
 use iced_widget::container;
+
 
 /// A set of rules that dictate the styling of a [`Table`](crate::Table).
 pub trait Catalog {
@@ -6,13 +8,13 @@ pub trait Catalog {
     type Style: Default + Clone;
 
     /// The header [`Style`](iced_widget::container::Style) of the [`Catalog`].
-    fn TARGET(&self, style: &Self::Style) -> container::Style;
+    fn style(&self, style: &Self::Style) -> container::Style;
 }
 
 impl Catalog for iced_core::Theme {
-    type Style = ();
+    type Style = container::Style;
 
-    fn TARGET(&self, _style: &Self::Style) -> container::Style {
+    fn style(&self, _style: &Self::Style) -> container::Style {
         container::Style {
             text_color: Some(self.extended_palette().background.strong.text),
             background: Some(self.extended_palette().background.strong.color.into()),
@@ -26,7 +28,7 @@ pub(crate) mod wrapper {
     use iced_core::{mouse::Cursor, Color, Element, Length, Size, Vector, Widget};
     use iced_widget::container;
 
-    pub fn TARGET<'a, Message, Theme, Renderer>(
+    pub fn style<'a, Message, Theme, Renderer>(
         content: impl Into<Element<'a, Message, Theme, Renderer>>,
         style: <Theme as super::Catalog>::Style,
         index: usize,
@@ -38,14 +40,14 @@ pub(crate) mod wrapper {
     {
         Wrapper {
             content: content.into(),
-            target: Target::TARGET,
+            target: Target::style,
             style,
         }
         .into()
     }
 
-    enum Target {
-        TARGET,
+    pub enum Target {
+        style,
         // Add a target
     }
 
@@ -59,7 +61,7 @@ pub(crate) mod wrapper {
             Theme: super::Catalog,
         {
             match self {
-                Target::TARGET => theme.TARGET(style)
+                Target::style => theme.style(style)
                 // Target::Header => theme.header(style),
                 // Target::Footer => theme.footer(style),
                 // Target::Row { index } => theme.row(style, *index),
@@ -67,14 +69,14 @@ pub(crate) mod wrapper {
         }
     }
 
-    struct Wrapper<'a, Message, Theme, Renderer>
+    pub struct Wrapper<'a, Message, Theme, Renderer>
     where
         Renderer: iced_core::Renderer,
         Theme: super::Catalog,
     {
-        content: Element<'a, Message, Theme, Renderer>,
-        target: Target,
-        style: <Theme as super::Catalog>::Style,
+        pub content: Element<'a, Message, Theme, Renderer>,
+        pub target: Target,
+        pub style: <Theme as super::Catalog>::Style,
     }
 
     impl<'a, Message, Theme, Renderer> Widget<Message, Theme, Renderer>
@@ -116,7 +118,7 @@ pub(crate) mod wrapper {
                 },
                 appearance
                     .background
-                    .unwrap_or_else(|| Color::TRANSPARENT.into()),
+                    .unwrap_or_else(|| Color::WHITE.into()),
             );
 
             let style = appearance
@@ -211,191 +213,3 @@ pub(crate) mod wrapper {
         }
     }
 }
-
-// use iced::{
-//     Color, Rectangle, Size, Length,
-//     advanced::{Widget, layout::Limits, renderer::Style, layout::Node},
-//     mouse::Cursor,
-//     event::Status,
-// };
-// use iced_core::{Layout as CoreLayout, renderer::Renderer as CoreRenderer};
-// use iced::advanced::widget::Tree;
-// // use iced::core::event::Status;
-// use iced_core::widget::tree::{Tag, State};
-// #[derive(Debug, Clone, Copy)]
-// pub struct Appearance {
-//     pub background_color: Color,
-// }
-
-// impl Default for Appearance {
-//     fn default() -> Self {
-//         Self {
-//             background_color: Color::BLACK,
-//         }
-//     }
-// }
-
-// pub trait StyleSheet {
-//     type Style: Default;
-
-//     fn appearance(&self, style: &Self::Style) -> Appearance;
-// }
-
-// impl StyleSheet for iced::Theme {
-//     type Style = ();
-
-//     fn appearance(&self, _style: &Self::Style) -> Appearance {
-//         let palette = self.extended_palette();
-//         Appearance {
-//             background_color: palette.background.weak.color,
-//             //text_color: todo!(),
-//         }
-//     }
-// }
-
-// pub struct Grid<Theme>
-// where
-//     Theme: StyleSheet,
-// {
-//     width: u32,
-//     height: u32,
-//     background_color: Option<Color>,
-//     theme: Theme,
-// }
-
-// impl<Theme> Grid<Theme>
-// where
-//     Theme: StyleSheet,
-// {
-//     pub fn new(width: u32, height: u32, theme: Theme) -> Self {
-//         Self {
-//             width,
-//             height,
-//             background_color: None,
-//             theme,
-//         }
-//     }
-
-//     pub fn background_color(mut self, color: Color) -> Self {
-//         self.background_color = Some(color);
-//         self
-//     }
-// }
-
-// impl<Theme> Default for Grid<Theme>
-// where
-//     Theme: StyleSheet,
-// {
-//     fn default() -> Self {
-//         Self::new(10, 10, Theme::default())
-//     }
-// }
-
-// // Fix: Remove unused lifetime and constraint the Renderer type
-// impl<'a, Message, Theme, Renderer> Widget<Message, Theme, Renderer> for Grid<Theme>
-// where
-//     Message: Clone + 'a,
-//     Theme: StyleSheet + 'a,
-//     Renderer: CoreRenderer + 'a,
-// {
-//     fn size(&self) -> Size<Length> {
-//         Size::new(self.width as f32, self.height as f32)
-//     }
-
-//     fn layout(
-//         &self,
-//         _tree: &mut Tree,
-//         _renderer: &Renderer,
-//         limits: &Limits,
-//     ) -> Node {
-//         let size = limits
-//             .max()
-//             .clamp((self.width as f32, self.height as f32), limits.max());
-//         Node::new(size)
-//     }
-
-//     fn draw(
-//         &self,
-//         _tree: &Tree,
-//         renderer: &mut Renderer,
-//         _theme: &Theme,
-//         _style: &Style,
-//         layout: CoreLayout<'_>,
-//         _cursor: Cursor,
-//         _viewport: &Rectangle,
-//     ) {
-//         if let Some(background_color) = self.background_color {
-//             renderer.fill_quad(
-//                 iced::advanced::renderer::Quad {
-//                     bounds: layout.bounds(),
-//                     border: Default::default(),
-//                     shadow: Default::default(),
-//                 },
-//                 background_color,
-//             );
-//         }
-//     }
-
-//     fn size_hint(&self) -> Size<Length> {
-//         self.size()
-//     }
-
-//     fn tag(&self) -> Tag {
-//         Tag::stateless()
-//     }
-
-//     fn state(&self) -> State {
-//         State::None
-//     }
-
-//     fn children(&self) -> Vec<Tree> {
-//         Vec::new()
-//     }
-
-//     fn diff(&self, _tree: &mut Tree) {}
-
-//     fn operate(
-//         &self,
-//         _state: &mut Tree,
-//         _layout: CoreLayout<'_>,
-//         _renderer: &Renderer, // Use the concrete Renderer type
-//         _operation: &mut dyn iced_core::widget::Operation,
-//     ) {
-//         // Your function logic here
-//     }
-
-//     fn on_event(
-//         &mut self,
-//         _state: &mut Tree,
-//         _event: iced::Event,
-//         _layout: CoreLayout<'_>,
-//         _cursor: iced_core::mouse::Cursor,
-//         _renderer: &Renderer,
-//         _clipboard: &mut dyn iced_core::Clipboard,
-//         _shell: &mut iced_core::Shell<'_, Message>,
-//         _viewport: &Rectangle,
-//     ) -> Status {
-//         Status::Ignored
-//     }
-
-//     fn mouse_interaction(
-//         &self,
-//         _state: &Tree,
-//         _layout: CoreLayout<'_>,
-//         _cursor: Cursor,
-//         _viewport: &Rectangle,
-//         _renderer: &Renderer,
-//     ) -> iced_core::mouse::Interaction {
-//         iced_core::mouse::Interaction::None
-//     }
-//     fn overlay(
-//         &mut self,  // No need for an explicit lifetime 'a
-//         state: &mut Tree,
-//         layout: CoreLayout<'_>,
-//         renderer: &Renderer,
-//         translation: iced::Vector,
-//     ) -> Option<iced_core::overlay::Element<'_, Message, Theme, Renderer>> {
-//         None
-//     }
-    
-// }
