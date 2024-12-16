@@ -109,17 +109,17 @@ where
 impl<'a, Message, Theme, Renderer> From<Grid<Message, Theme>>
 for Element<'a, Message, Theme, Renderer>
 where
-   // <Theme as style::Catalog>::Style 
+   
     Renderer: iced_core::Renderer + 'a,
     Theme: style::Catalog + container::Catalog + scrollable::Catalog + 'a,
     Message: 'a + Clone,
 {
     fn from(grid: Grid<Message, Theme>) -> Self {
-        let style = grid.style.clone(); // Clone the style to resolve the conflict
+        let style = grid.style.clone(); 
     
         Element::new(Wrapper { 
             content: grid.into(),
-            target: Target::style,
+            target: Target::Style,
             style,
         })
     }    
@@ -191,9 +191,22 @@ impl<'a, Message, Theme: style::Catalog> Grid<Message, Theme> {
         column
     }
 
-    pub fn view(&'a self) -> iced::Element<'a, GridMessage> {
-        self.create_grid()
-            .into()
+    pub fn view(&'a self) -> iced::Element<'a, GridMessage> 
+    where iced_widget::container::Style: From<<Theme as style::Catalog>::Style>
+    {
+        
+        container(
+            self.create_grid()
+                .padding(10) 
+                .spacing(5), 
+        )
+        .style({
+            move |theme: &crate::Theme| self.style.clone().into() 
+        })
+ 
+        
+        
+        .into()
     }
-}
 
+}

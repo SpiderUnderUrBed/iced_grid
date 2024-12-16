@@ -3,35 +3,48 @@ use iced_widget::container;
 
 
 /// A set of rules that dictate the styling of a [`Table`](crate::Table).
-pub trait Catalog {
+pub trait Catalog 
+//where 
+//iced_widget::container::Style: From<<iced::Theme as crate::style::Catalog>::Style>
+{
     /// The supported style of the [`Catalog`].
     type Style: Default + Clone;
 
+    // fn generate(style: &Self::Style, theme: &crate::Theme) -> iced_widget::container::Style;
     /// The header [`Style`](iced_widget::container::Style) of the [`Catalog`].
-    fn style(&self, style: &Self::Style) -> container::Style;
+    fn body(&self, style: &Self::Style) -> container::Style;
+    fn cell(&self, _row: usize, _col: usize) -> container::Style;
 }
 
 impl Catalog for iced_core::Theme {
     type Style = container::Style;
 
-    fn style(&self, _style: &Self::Style) -> container::Style {
+    fn body(&self, _style: &Self::Style) -> container::Style {
         container::Style {
             text_color: Some(self.extended_palette().background.strong.text),
             background: Some(self.extended_palette().background.strong.color.into()),
             ..Default::default()
         }
     }
-
+    fn cell(&self, _row: usize, _col: usize) -> iced::widget::container::Style {
+        container::Style {
+            background: Some(iced::Background::Color(Color::from_rgb(0.6, 0.6, 0.9))),
+            ..Default::default()
+        }
+    }
+    // fn generate(style: &Self::Style, _theme: &crate::Theme) -> iced_widget::container::Style {
+    //     style.clone() // Clone the style directly
+    // }
 }
 
+
 pub(crate) mod wrapper {
-    use iced_core::{mouse::Cursor, Color, Element, Length, Size, Vector, Widget};
+    use iced_core::{mouse::Cursor, Element, Length, Size, Vector, Widget};
     use iced_widget::container;
 
     pub fn style<'a, Message, Theme, Renderer>(
         content: impl Into<Element<'a, Message, Theme, Renderer>>,
         style: <Theme as super::Catalog>::Style,
-        index: usize,
     ) -> Element<'a, Message, Theme, Renderer>
     where
         Renderer: iced_core::Renderer + 'a,
@@ -40,15 +53,15 @@ pub(crate) mod wrapper {
     {
         Wrapper {
             content: content.into(),
-            target: Target::style,
+            target: Target::Style,
             style,
         }
         .into()
     }
 
     pub enum Target {
-        style,
-        // Add a target
+        Style,
+        //Cell,
     }
 
     impl Target {
@@ -61,10 +74,7 @@ pub(crate) mod wrapper {
             Theme: super::Catalog,
         {
             match self {
-                Target::style => theme.style(style)
-                // Target::Header => theme.header(style),
-                // Target::Footer => theme.footer(style),
-                // Target::Row { index } => theme.row(style, *index),
+                Target::Style => theme.body(style),
             }
         }
     }
@@ -108,7 +118,7 @@ pub(crate) mod wrapper {
             cursor: Cursor,
             viewport: &iced_core::Rectangle,
         ) {
-            let appearance = self.target.appearance::<Theme>(theme, &self.style);
+            let appearance = self.target.appearance(theme, &self.style);
 
             renderer.fill_quad(
                 iced_core::renderer::Quad {
@@ -118,17 +128,17 @@ pub(crate) mod wrapper {
                 },
                 appearance
                     .background
-                    .unwrap_or_else(|| Color::WHITE.into()),
+                    .unwrap_or_else(|| iced_core::Color::TRANSPARENT.into()),
             );
 
-            let style = appearance
+            let text_style = appearance
                 .text_color
-                .map(|text_color| iced_core::renderer::Style { text_color })
+                .map(|color| iced_core::renderer::Style { text_color: color })
                 .unwrap_or(*style);
 
             self.content
                 .as_widget()
-                .draw(state, renderer, theme, &style, layout, cursor, viewport)
+                .draw(state, renderer, theme, &text_style, layout, cursor, viewport);
         }
 
         fn tag(&self) -> iced_core::widget::tree::Tag {
@@ -156,7 +166,7 @@ pub(crate) mod wrapper {
         ) {
             self.content
                 .as_widget()
-                .operate(state, layout, renderer, operation)
+                .operate(state, layout, renderer, operation);
         }
 
         fn on_event(
