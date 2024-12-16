@@ -1,178 +1,258 @@
+Here's updated documentation for your code with improved details and relevance to your latest implementation:
 
+---
 
-# Iced_grid
-This library provides a simple grid-based UI component built with the `iced` crate. It includes functionality for managing rows and cells within a grid, with different cell types like text and buttons.
+# `iced_grid`
+
+This library provides a grid-based UI component built with the `iced` crate. It allows developers to create and manage grids with customizable rows and cells. Each cell can represent different types of content, including text, buttons, and custom containers.
 
 ## Installation
 
-To use this library in your project, add it to your `Cargo.toml` as a dependency:
+Add the `iced` crate as a dependency in your `Cargo.toml`:
 
 ```toml
 [dependencies]
 iced = "0.12"
-iced_grid = { path = "<location to iced grid>" }
+iced_grid = { path = "<path-to-iced_grid>" }
 ```
-
-Ensure that the `iced` crate is added as a dependency in your `Cargo.toml` if you don't already have it.
 
 ## Features
 
-- **Grid Management**: Manage rows and cells, with functionality to add new rows and cells.
-- **Cell Configuration**: Cells can display text or act as buttons.
-- **Interaction**: Cells support interaction, such as clicks and edits.
+- **Dynamic Grid Management**: Easily manage rows and cells in a grid structure.
+- **Cell Types**: Support for text, buttons, and custom containers within cells.
+- **User Interaction**: Cells can respond to interactions like clicks or edits.
+- **Custom Styling**: Support for theming and styles via the `style::Catalog` trait.
 
-## Key Components
+---
+
+## Components Overview
 
 ### `Grid`
 
-The `Grid` struct manages the overall structure of the grid, containing multiple rows. Each row is an instance of `RowData`.
+The `Grid` struct is the main component that manages rows (`RowData`) and cells (`Cell`). It supports rendering, adding rows, and interacting with cells.
 
 #### Methods
 
-- **`new()`**: Creates a new, empty grid.
-- **`get_cell(row_index, cell_index)`**: Retrieves a mutable reference to a cell at the specified position.
-- **`get_row(row_index)`**: Retrieves a mutable reference to a row at the specified position, creating new rows if necessary.
-- **`row_count()`**: Returns the number of rows in the grid.
-- **`add_row()`**: Adds a new row to the grid.
-- **`view()`**: Returns the view of the grid, rendering the cells and rows, with an "Add Cell" button for each row.
+- **`new(rows, style, on_sync)`**: Creates a new grid instance.
+  - `rows`: Initial grid data as a `Vec<RowData>`.
+  - `style`: Custom style implementing the `Catalog` trait.
+  - `on_sync`: A callback for synchronizing scrollable offsets.
 
-#### Example Usage
+- **`get_cell(row_index, cell_index)`**: Returns a mutable reference to a cell at the specified position, if it exists.
+  
+- **`get_row(row_index)`**: Retrieves a mutable reference to the specified row, creating new rows if needed.
+  
+- **`add_row(row)`**: Adds a new `RowData` to the grid.
+  
+- **`row_count()`**: Returns the total number of rows in the grid.
+  
+- **`view()`**: Returns an `iced::Element` for rendering the entire grid.
 
-```rust
-use iced::{Sandbox, Settings, Text};
-use my_grid_app::{Grid, GridMessage};
+- **`create_Grid()`**: Constructs the visual representation of the grid as an `iced::Column`.
 
-pub fn main() -> iced::Result {
-    MyApp::run(Settings::default())
-}
-
-struct MyApp {
-    grid: Grid,
-}
-
-impl Sandbox for MyApp {
-    type Message = GridMessage;
-
-    fn new() -> Self {
-        let mut grid = Grid::new();
-        grid.add_row();
-        grid.get_row(0).push(CellConfig::Text("Hello, Cell!".to_string()));
-
-        Self { grid }
-    }
-
-    fn title(&self) -> String {
-        String::from("My Grid Application")
-    }
-
-    fn update(&mut self, message: GridMessage) {
-        match message {
-            GridMessage::AddCell(row_index) => {
-                self.grid
-                    .get_row(row_index)
-                    .push(CellConfig::Text("New Cell".to_string()));
-            }
-            GridMessage::Cell(row_index, cell_index, CellMessage::Edit) => {
-                if let Some(cell) = self.grid.get_cell(row_index, cell_index) {
-                    cell.edit(CellConfig::Text("Edited!".to_string()));
-                }
-            }
-            GridMessage::Cell(row_index, cell_index, CellMessage::Remove) => {
-                if let Some(cell) = self.grid.get_cell(row_index, cell_index) {
-                    cell.remove();
-                }
-            }
-            GridMessage::Cell(row_index, cell_index, CellMessage::Clicked) => {
-                // Handle click event
-            }
-        }
-    }
-
-    fn view(&self) -> iced::Element<Self::Message> {
-        self.grid.view()
-    }
-}
-```
+---
 
 ### `RowData`
 
-`RowData` represents a single row in the grid, containing multiple cells.
+`RowData` represents a single row within the grid and contains a list of `Cell`s.
 
 #### Methods
 
-- **`push(config: CellConfig)`**: Adds a new cell with the specified configuration to the row.
-- **`get_mut(index: usize)`**: Retrieves a mutable reference to a cell at the specified index.
+- **`push_text(content)`**: Adds a text cell to the row.
+  
+- **`push_button(label, on_press)`**: Adds a button cell with a label and an action.
+  
+- **`push_container(factory)`**: Adds a custom container cell using a closure to generate the content.
+
+- **`get_mut(index)`**: Returns a mutable reference to a cell at the specified index, if it exists.
+
+- **`len()`**: Returns the number of cells in the row.
+
+---
 
 ### `Cell`
 
-`Cell` represents a single cell in a row. Each cell can be configured to display text or act as a button.
+`Cell` represents the smallest unit within the grid and can display text, a button, or custom content.
+
+#### Variants
+
+- **`Text(content)`**: Displays a string as plain text.
+  
+- **`Button { label, on_press }`**: Displays a clickable button with a label.
+  
+- **`Container(factory)`**: Uses a closure to render custom elements dynamically.
 
 #### Methods
 
-- **`new(config: CellConfig)`**: Creates a new cell with the given configuration.
-- **`edit(new_config: CellConfig)`**: Edits the configuration of the cell.
-- **`remove()`**: Clears the content of the cell (sets it to an empty `Text`).
-- **`view()`**: Returns the view of the cell, which is either a text element or a button.
+- **`view()`**: Returns the visual representation of the cell as an `iced::Element`.
 
-### `CellConfig`
-
-`CellConfig` defines the possible configurations of a cell. A cell can either display text or act as a button.
-
-#### Variants
-
-- **`Text(String)`**: A text cell, displaying the specified string.
-- **`Button(String)`**: A button cell, displaying the specified label.
+---
 
 ### `CellMessage`
 
-`CellMessage` represents the possible actions for a cell.
+This enum represents possible actions related to a cell.
 
-#### Variants
+- **`Edit`**: Represents editing a cell.
+- **`Remove`**: Represents removing a cell.
+- **`Clicked`**: Represents a click action on a cell.
 
-- **`Edit`**: Indicates that the cell is being edited.
-- **`Remove`**: Indicates that the cell should be removed or cleared.
-- **`Clicked`**: Indicates that the cell was clicked.
+---
 
 ### `GridMessage`
 
-`GridMessage` represents the possible messages for interacting with the grid.
+This enum represents grid-level actions.
 
-#### Variants
+- **`AddCell(row_index)`**: Adds a new cell to the specified row.
+- **`Cell(row_index, cell_index, CellMessage)`**: Handles a specific action (`CellMessage`) for a cell identified by its row and column index.
 
-- **`AddCell(usize)`**: A message to add a new cell to the specified row.
-- **`Cell(usize, usize, CellMessage)`**: A message to interact with a specific cell, identified by its row and cell index, and a `CellMessage` (such as edit, remove, or click).
+---
 
-## Examples
+### `style::Catalog`
 
-### Adding a New Row
+This trait defines custom styling options for the grid. The exact implementation depends on your application's requirements.
 
-To add a new row to the grid, simply call the `add_row()` method on the `Grid` instance:
+---
 
-```rust
-grid.add_row();
-```
+## Example Usage
 
-This will create a new row with no cells. You can then add cells to it.
+Here’s how you can use the `iced_grid` library in an `iced::Sandbox` application.
 
-### Adding a New Cell
-
-To add a new cell to a specific row, use the `get_row(row_index)` method and call `push()` to add a cell:
+### Creating a Grid
 
 ```rust
-grid.get_row(0).push(CellConfig::Text("New Cell".to_string()));
-```
+use iced::application::Title;
+use iced::{Application, Element, Settings, Subscription, Theme};
+use iced_grid::{Grid, RowData, CellMessage};
 
-### Handling Cell Clicks
-
-Each cell can be configured to act as a button, and when clicked, a `GridMessage::Cell` message is sent. To handle clicks, you can implement logic in the `update` method of your `Sandbox` implementation:
-
-```rust
-GridMessage::Cell(row_index, cell_index, CellMessage::Clicked) => {
-    // Handle cell click
+#[derive(Debug, Clone)]
+enum Message {
+    Ui(UiMessage),
+    Grid(iced_grid::GridMessage),
 }
+
+#[derive(Debug, Clone)]
+enum UiMessage {
+    AddRow,
+    AddCell(usize), // usize represents the row to which a cell will be added
+    ButtonClicked(usize, usize),
+    Sync,
+}
+
+impl From<UiMessage> for Message {
+    fn from(ui_message: UiMessage) -> Self {
+        Message::Ui(ui_message)
+    }
+}
+
+impl From<iced_grid::GridMessage> for Message {
+    fn from(grid_message: iced_grid::GridMessage) -> Self {
+        Message::Grid(grid_message)
+    }
+}
+
+pub struct MyApp {
+    grid: Grid<Message, MyTheme>,
+}
+
+impl Default for MyApp {
+    fn default() -> Self {
+        let rows = vec![];
+
+        // Create the grid
+        let mut grid = Grid::new(
+            rows,
+            (),
+            |_offset: iced::widget::scrollable::AbsoluteOffset| UiMessage::Sync.into(),
+        );
+
+        // Add an initial row to the grid
+        let mut row = RowData::default();
+        row.push_text("Row 1, Cell 1".into());
+        row.push_button("Add Row".into(), CellMessage::Clicked);
+        row.push_button("Add Cell".into(), CellMessage::Clicked);
+        grid.add_row(row);
+
+        MyApp { grid }
+    }
+}
+
+#[derive(Clone)]
+pub struct MyTheme;
+
+impl iced_grid::style::Catalog for MyTheme {
+    type Style = ();
+
+    fn TARGET(&self, _style: &Self::Style) -> iced::widget::container::Style {
+        iced::widget::container::Style::default()
+    }
+}
+
+impl MyApp {
+    fn view<'a>(&'a self) -> iced::Element<'a, Message> {
+        self.grid.view().map(Message::from)
+    }
+
+    fn update(&mut self, message: Message) {
+        match message {
+            Message::Ui(ui_message) => match ui_message {
+                UiMessage::AddRow => {
+                    let mut new_row = RowData::default();
+                    let row_index = self.grid.row_count();
+                    new_row.push_text(format!("Row {}, Cell 1", row_index + 1).into());
+                    new_row.push_button("Add Row".into(), CellMessage::Clicked);
+                    new_row.push_button("Add Cell".into(), CellMessage::Clicked);
+                    self.grid.add_row(new_row);
+                }
+                UiMessage::AddCell(row_index) => {
+                    if let Some(row) = self.grid.get_row_mut(row_index) {
+                        let cell_count = row.cells.len() - 2; // Exclude Add Row and Add Cell buttons
+                        row.push_text(format!("Row {}, Cell {}", row_index + 1, cell_count + 1).into());
+                    }
+                }
+                UiMessage::ButtonClicked(row, col) => {
+                    println!("Button clicked in row {}, column {}", row, col);
+                }
+                UiMessage::Sync => {
+                    println!("Syncing...");
+                }
+            },
+            Message::Grid(grid_message) => match grid_message {
+                iced_grid::GridMessage::Cell(row, col, CellMessage::Clicked) => {
+                    // Determine action based on the column index
+                    if col == 1 {
+                        // Add Row button clicked
+                        self.update(Message::Ui(UiMessage::AddRow));
+                    } else if col == 2 {
+                        // Add Cell button clicked
+                        self.update(Message::Ui(UiMessage::AddCell(row)));
+                    }
+                }
+                _ => {
+                    // Handle other grid messages if necessary
+                    println!("Grid message received: {:?}", grid_message);
+                }
+            },
+        }
+    }
+    
+
+    fn theme(&self) -> Theme {
+        Theme::default()
+    }
+}
+
+fn main() -> iced::Result {
+    iced::run("main", MyApp::update, MyApp::view)
+}
+
 ```
+
+---
 
 ## Contributing
 
-Contributions to this library are welcome! If you encounter any bugs or have feature requests, feel free to open an issue or submit a pull request.
+Contributions are welcome! If you find any issues or have feature suggestions, please open an issue or submit a pull request.
 
+---
+
+This documentation incorporates the latest updates to your code and explains the new features comprehensively.

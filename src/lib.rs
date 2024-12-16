@@ -2,6 +2,11 @@ use iced::{
     widget::{Button, Text},
     Element,
 };
+//use iced::Element;
+use iced_widget::{
+    scrollable, Column, Row, 
+//    Text, Button
+};
 
 use std::sync::Arc;
 use std::cell::RefCell;
@@ -60,7 +65,7 @@ impl Cell<'_> {
 
 #[derive(Default, Clone)]
 pub struct RowData {
-    cells: Vec<Cell<'static>>,
+    pub cells: Vec<Cell<'static>>,
 }
 
 impl RowData {
@@ -79,96 +84,89 @@ impl RowData {
         self.cells.push(Cell::Container(Arc::new(RefCell::new(factory))));
     }
 
+    pub fn len(&self) -> usize {
+        self.cells.len()
+    }
+
     pub fn get_mut(&mut self, index: usize) -> Option<&mut Cell<'static>> {
         self.cells.get_mut(index)
     }
 }
 
-pub mod Grid {
-    use super::{Cell, GridMessage, RowData, style};
-    use iced::Element;
-    use iced_widget::{container, scrollable, Button, Column, Row, Text};
+   // use super::{Cell, GridMessage, RowData, style};
 
-    pub fn Grid<'a, Message, Theme>(
-        header: scrollable::Id,
-        body: scrollable::Id,
-        rows: Vec<RowData>,  // Now accepting rows from the user
-        on_sync: fn(scrollable::AbsoluteOffset) -> Message,
-    ) -> grid<Message, Theme>
-    where
-        Theme: style::Catalog + container::Catalog,
-    {
-        grid::<Message, Theme> {
-            rows,
-            style: Default::default(),
-            on_sync
+pub struct Grid<Message, Theme>
+where
+    Theme: style::Catalog,
+{
+    rows: Vec<RowData>,
+    style: <Theme as style::Catalog>::Style,
+    on_sync: fn(scrollable::AbsoluteOffset) -> Message,
+}
+
+impl<'a, Message, Theme: style::Catalog> Grid<Message, Theme> {
+    pub fn new(rows: Vec<RowData>, style: <Theme as style::Catalog>::Style, on_sync: fn(scrollable::AbsoluteOffset) -> Message ) -> Self {
+        Self { rows, style, on_sync }
+    }
+
+    pub fn get_cell(&mut self, row_index: usize, cell_index: usize) -> Option<&mut Cell<'static>> {
+        self.rows.get_mut(row_index).and_then(|row| row.get_mut(cell_index))
+    }
+
+    pub fn get_row(&mut self, row: usize) -> &mut RowData {
+        if self.rows.len() <= row {
+            self.rows.resize_with(row + 1, RowData::default);
+        }
+        &mut self.rows[row]
+    }
+
+    pub fn row_count(&self) -> usize {
+        self.rows.len()
+    }
+
+    pub fn add_row(&mut self, row: RowData) {
+        self.rows.push(row);
+    }
+
+    pub fn get_row_mut(&mut self, row: usize) -> Option<&mut RowData> {
+        if row < self.rows.len() {
+            Some(&mut self.rows[row])
+        } else {
+            None
         }
     }
 
-    pub struct grid<Message, Theme>
-    where
-        Theme: style::Catalog + container::Catalog,
-    {
-        rows: Vec<RowData>,
-        style: <Theme as style::Catalog>::Style,
-        on_sync: fn(scrollable::AbsoluteOffset) -> Message,
+    pub fn create_Grid(&'a self) -> Column<'a, GridMessage> {
+        let mut column = Column::new().spacing(10);
+
+        for row_index in 0..self.rows.len() {
+            let mut row_view = Row::new().spacing(10);
+            for cell_index in 0..self.rows[row_index].cells.len() {
+                let cell = &self.rows[row_index].cells[cell_index];
+                let cell_view: Element<GridMessage> = match cell {
+                    Cell::Text(ref text) => {
+                        Text::new(text.clone()).into()
+                    }
+                    Cell::Button { ref label, on_press } => {
+                        Button::new(Text::new(label.clone()))
+                            .on_press(GridMessage::Cell(row_index, cell_index, on_press.clone()))
+                            .into()
+                    }
+                    Cell::Container(factory) => (factory.borrow())().map(move |cell_msg| {
+                        GridMessage::Cell(row_index, cell_index, cell_msg)
+                    }),
+                };
+                row_view = row_view.push(cell_view);
+            }
+            column = column.push(row_view);
+        }
+
+        column
     }
 
-    impl<'a, Message, Theme: iced_widget::container::Catalog + style::Catalog> grid<Message, Theme> {
-        pub fn new(rows: Vec<RowData>, style: <Theme as style::Catalog>::Style, on_sync: fn(scrollable::AbsoluteOffset) -> Message ) -> Self {
-            Self { rows, style, on_sync }
-        }
-
-        pub fn get_cell(&mut self, row_index: usize, cell_index: usize) -> Option<&mut Cell<'static>> {
-            self.rows.get_mut(row_index).and_then(|row| row.get_mut(cell_index))
-        }
-
-        pub fn get_row(&mut self, row: usize) -> &mut RowData {
-            if self.rows.len() <= row {
-                self.rows.resize_with(row + 1, RowData::default);
-            }
-            &mut self.rows[row]
-        }
-
-        pub fn row_count(&self) -> usize {
-            self.rows.len()
-        }
-
-        pub fn add_row(&mut self, row: RowData) {
-            self.rows.push(row);
-        }
-
-        pub fn create_grid(&'a self) -> Column<'a, GridMessage> {
-            let mut column = Column::new().spacing(10);
-
-            for row_index in 0..self.rows.len() {
-                let mut row_view = Row::new().spacing(10);
-                for cell_index in 0..self.rows[row_index].cells.len() {
-                    let cell = &self.rows[row_index].cells[cell_index];
-                    let cell_view: Element<GridMessage> = match cell {
-                        Cell::Text(ref text) => {
-                            Text::new(text.clone()).into()
-                        }
-                        Cell::Button { ref label, on_press } => {
-                            Button::new(Text::new(label.clone()))
-                                .on_press(GridMessage::Cell(row_index, cell_index, on_press.clone()))
-                                .into()
-                        }
-                        Cell::Container(factory) => (factory.borrow())().map(move |cell_msg| {
-                            GridMessage::Cell(row_index, cell_index, cell_msg)
-                        }),
-                    };
-                    row_view = row_view.push(cell_view);
-                }
-                column = column.push(row_view);
-            }
-
-            column
-        }
-
-        pub fn view(&'a self) -> iced::Element<'a, GridMessage> {
-            self.create_grid()
-                .into()
-        }
+    pub fn view(&'a self) -> iced::Element<'a, GridMessage> {
+        self.create_Grid()
+            .into()
     }
 }
+
