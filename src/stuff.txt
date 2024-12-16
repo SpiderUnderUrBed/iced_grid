@@ -1,0 +1,244 @@
+
+// pub trait Catalog {
+//     type Style;
+
+//     fn appearance(&self, style: &Self::Style) -> String;
+// }
+
+
+// pub struct LightTheme;
+
+// impl Style for LightTheme {
+//     fn background_color(&self) -> String {
+//         "lightgray".to_string()
+//     }
+// }
+
+
+// pub struct DarkTheme;
+
+// impl Style for DarkTheme {
+//     fn background_color(&self) -> String {
+//         "darkgray".to_string()
+//     }
+// }
+
+
+// pub trait Style {
+//     fn background_color(&self) -> String;
+// }
+
+// pub trait OtherStyle {
+//    fn background_color(&self) -> String;
+// }
+
+
+// pub struct Theme<'a, Style>
+// where
+//     Style: Catalog<Style = OtherStyle> + 'a, 
+// {
+//     style: Style,
+// }
+
+
+// impl<'a, Style> Catalog for Theme<'a, Style>
+// where
+//     Style: Catalog<Style = OtherStyle> + 'a, 
+// {
+//     type Style = Style; 
+
+//     fn appearance(&self, style: &Self::Style) -> String {
+//         style.background_color()
+//     }
+// }
+
+// impl<S> OtherStyle for S
+// where 
+//     S: Style + OtherStyle,
+// {
+//     fn background_color(&self) -> String;
+// }
+
+// impl<'a, Style> Theme<'a, Style>
+// where
+//     Style: Catalog<Style = OtherStyle> + 'a, 
+// {
+//     pub fn new(style: Style) -> Self {
+//         Theme { style }
+//     }
+
+//     pub fn display_background(&self) {
+//         println!("Background color: {}", self.appearance(&self.style));
+//     }
+// }
+
+
+// fn main() {
+    
+//     let light_theme = Theme::new(LightTheme);
+//     light_theme.display_background(); 
+
+    
+//     let dark_theme = Theme::new(DarkTheme);
+//     dark_theme.display_background(); 
+// }
+
+// pub trait StyleT {
+//     fn background_color(&self) -> String;
+// }
+
+// pub struct Style;
+
+// impl StyleT for Style {
+//     // Uncommenting this line will make the call work for Style
+//     fn background_color(&self) -> String {
+//         "lightgray".to_string()
+//     }
+// }
+
+// pub struct OtherStyle;
+
+// impl StyleT for OtherStyle {
+//     // fn background_color(&self) -> String {
+//     //     "darkgray".to_string()
+//     // }
+// }
+
+// enum Styles {
+//     Primary(Style),
+//     Secondary(OtherStyle),
+// }
+
+// impl StyleT for Styles {
+//     fn background_color(&self) -> String {
+//         match self {
+//             Styles::Primary(style) => style.background_color(), // This will work if background_color() is defined
+//             Styles::Secondary(style) => style.background_color(), // This works fine
+//         }
+//     }
+// }
+
+// fn main() {
+//     let primary = Styles::Primary(Style);
+//     println!("{}", primary.background_color()); // This will work if background_color is implemented for Style
+// }
+
+
+// pub trait Catalog {
+//     type Style;
+
+//     fn appearance(&self, style: &Self::Style) -> String;
+// }
+
+// pub struct LightTheme;
+
+// impl LightTheme {
+//     pub fn style() -> Style {
+//         Style {
+//             background_color: "lightgray".to_string(),
+//         }
+//     }
+// }
+
+// pub struct DarkTheme;
+
+// impl DarkTheme {
+//     pub fn style() -> Style {
+//         Style {
+//             background_color: "darkgray".to_string(),
+//         }
+//     }
+// }
+
+// pub struct Theme<'a, S> {
+//     style: S,
+//    // _marker: std::marker::PhantomData<&'a ()>,
+// }
+
+// impl<'a, S> Catalog for Theme<'a, S>
+// where
+//     S: AsRef<Style> + 'a,
+// {
+//     type Style = Style;
+
+//     fn appearance(&self, style: &Self::Style) -> String {
+//         style.background_color.clone()
+//     }
+// }
+
+// // Example usage
+// fn main() {
+//     let light_theme = LightTheme::style();
+//     let dark_theme = DarkTheme::style();
+
+//     let theme = Theme {
+//         style: &light_theme,
+//         //_marker: std::marker::PhantomData,
+//     };
+
+//     println!("Light Theme Background: {}", theme.appearance(&light_theme));
+
+//     let theme = Theme {
+//         style: &dark_theme,
+//         //_marker: std::marker::PhantomData,
+//     };
+
+//     println!("Dark Theme Background: {}", theme.appearance(&dark_theme));
+// }
+
+// // enum Styles {
+// //     Main(Style),
+// //     Secondary(OtherStyle)
+// // }
+// // impl Styles for ThemeStyle {
+// //     fn font_size(&self) -> u32 {
+// //         match self {
+// //             ThemeStyle::Main(style) => style.font_size(),
+// //             ThemeStyle::Secondary(style) => style.font_size(),
+// //         }
+// //     }
+// // }
+// // impl<S> OtherStyle for S
+// // where 
+// //     S: Style,
+// // {
+// //     fn background_color(&self) -> String;
+// // }
+// // enum ThemeStyle {
+// //     Simple(SimpleStyle),
+// //     Fancy(FancyStyle),
+// // }
+
+// // impl Style for ThemeStyle {
+// //     fn font_size(&self) -> u32 {
+// //         match self {
+// //             ThemeStyle::Simple(style) => style.font_size(),
+// //             ThemeStyle::Fancy(style) => style.font_size(),
+// //         }
+// //     }
+// // }
+
+
+// // impl<'a, Style> Theme<'a, Style>
+// // where
+// //     Style: Catalog<Style = OtherStyle> + 'a, 
+// // {
+// //     pub fn new(style: Style) -> Self {
+// //         Theme { style }
+// //     }
+
+// //     pub fn display_background(&self) {
+// //         println!("Background color: {}", self.appearance(&self.style));
+// //     }
+// // }
+
+
+// // fn main() {
+    
+// //     let light_theme = Theme::new(LightTheme);
+// //     light_theme.display_background(); 
+
+    
+// //     let dark_theme = Theme::new(DarkTheme);
+// //     dark_theme.display_background(); 
+// // }
