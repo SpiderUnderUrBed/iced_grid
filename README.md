@@ -1,5 +1,3 @@
-Here's updated documentation for your code with improved details and relevance to your latest implementation:
-
 ---
 
 # `iced_grid`
@@ -138,5 +136,3 @@ Refer to the demo
 Contributions are welcome! If you find any issues or have feature suggestions, please open an issue or submit a pull request.
 
 ---
-
-This documentation incorporates the latest updates to your code and explains the new features comprehensively.
