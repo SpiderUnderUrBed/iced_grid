@@ -27,6 +27,7 @@ pub enum GridMessage {
     AddCell(usize),
     Cell(usize, usize, CellMessage),
 }
+
 pub enum Cell<'a> {
     Text(String),
     Button {
@@ -53,7 +54,7 @@ impl<'a> Clone for Cell<'a> {
 
 impl Cell<'_> {
     pub fn view(&self) -> Element<CellMessage> {
-        match self {
+        let element = match self {
             Cell::Text(content) => Text::new(content.clone()).into(),
             Cell::Button { label, on_press } => {
                 Button::new(Text::new(label.clone()))
@@ -61,7 +62,8 @@ impl Cell<'_> {
                     .into()
             }
             Cell::Container(factory) => (factory.borrow())(),
-        }
+        };
+        element
     }
 }
 
@@ -96,7 +98,7 @@ impl RowData {
 }
 
    
-
+#[derive(Clone)]
 pub struct Grid<Message, Theme>
 where
     Theme: style::Catalog,
@@ -125,6 +127,20 @@ where
     }    
 }
 
+impl<Message, Theme> From<iced::Element<'_, Message, Theme>> for Grid<Message, Theme>
+where
+    Theme: style::Catalog,
+{
+    fn from(_element: iced::Element<'_, Message, Theme>) -> Self {
+        
+        
+        Grid {
+            rows: Vec::new(),
+            style: Default::default(), 
+            on_sync: |_| panic!("Conversion from Element not implemented"),
+        }
+    }
+}
 
 impl<'a, Message, Theme: style::Catalog> Grid<Message, Theme> {
     pub fn new(rows: Vec<RowData>, style: <Theme as style::Catalog>::Style, on_sync: fn(scrollable::AbsoluteOffset) -> Message ) -> Self {

@@ -12,7 +12,7 @@ enum Message {
 #[derive(Debug, Clone)]
 enum UiMessage {
     AddRow,
-    AddCell(usize), // usize represents the row to which a cell will be added
+    AddCell(usize), 
     ButtonClicked(usize, usize),
     Sync,
 }
@@ -47,7 +47,7 @@ impl Default for MyApp {
     fn default() -> Self {
         let rows = vec![];
 
-        // Create the grid
+        
         let mut grid = Grid::new(
             rows,
             container::Style {
@@ -57,7 +57,7 @@ impl Default for MyApp {
             |_offset: iced::widget::scrollable::AbsoluteOffset| UiMessage::Sync.into(),
         );
 
-        // Add an initial row to the grid
+        
         let mut row = RowData::default();
         row.push_text("Row 1, Cell 1".into());
         row.push_button("Add Row".into(), CellMessage::Clicked);
@@ -117,12 +117,12 @@ impl MyApp {
                 }
                 UiMessage::AddCell(row_index) => {
                     if let Some(row) = self.grid.get_row_mut(row_index) {
-                        let cell_count = row.cells.len() - 2; // Exclude Add Row and Add Cell buttons
+                        let cell_count = row.cells.len() - 2; 
                         row.push_text(format!("Row {}, Cell {}", row_index + 1, cell_count + 1).into());
                     }
                 }
                 UiMessage::ButtonClicked(row, col) => {
-                   // grid.add_cells_to_all_rows(5);
+                   
                     println!("Button clicked in row {}, column {}", row, col);
                 }
                 UiMessage::Sync => {
@@ -131,17 +131,17 @@ impl MyApp {
             },
             Message::Grid(grid_message) => match grid_message {
                 iced_grid::GridMessage::Cell(row, col, CellMessage::Clicked) => {
-                    // Determine action based on the column index
+                    
                     if col == 1 {
-                        // Add Row button clicked
+                        
                         self.update(Message::Ui(UiMessage::AddRow));
                     } else if col == 2 {
-                        // Add Cell button clicked
+                        
                         self.update(Message::Ui(UiMessage::AddCell(row)));
                     }
                 }
                 _ => {
-                    // Handle other grid messages if necessary
+                    
                     println!("Grid message received: {:?}", grid_message);
                 }
             },
