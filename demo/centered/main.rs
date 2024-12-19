@@ -62,6 +62,7 @@ impl Default for MyApp {
         row.push_text("Row 1, Cell 1".into());
         row.push_button("Add Row".into(), CellMessage::Clicked);
         row.push_button("Add Cell".into(), CellMessage::Clicked);
+        row.push_container(container("test"));
         grid.add_row(row);
         
         
@@ -71,10 +72,6 @@ impl Default for MyApp {
                 ..Default::default()
             }
         );
-        
-        
-
-
         MyApp { grid }
     }
 }
@@ -101,7 +98,7 @@ impl iced_grid::style::Catalog for MyTheme {
 }
 
 impl MyApp {
-    fn view<'a>(&'a self) -> iced::Element<'a, Message> {
+    fn view<'a>(&'a mut self) -> iced::Element<'a, Message> {
         let centered_grid= Column::new()
             .push(Space::with_height(Length::Fill)) 
             .push(

@@ -9,3 +9,4 @@ edition = "2021"
 iced = { version = "0.13", features = ["advanced", "default", "canvas"] }
 iced_core = "0.13"
 iced_widget = "0.13"
+iced_tiny_skia = "0.13.0"

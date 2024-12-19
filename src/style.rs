@@ -1,16 +1,12 @@
 use iced::Color;
 use iced_widget::container;
-
-
+//use iced_core::Renderer;
 
 pub trait Catalog 
 
 
 {
-    
     type Style: Default + Clone;
-
-    
     
     fn body(&self, style: &Self::Style) -> container::Style;
     fn cell(&self, _row: usize, _col: usize) -> container::Style;
@@ -38,12 +34,15 @@ impl Catalog for iced_core::Theme {
 }
 
 
-pub(crate) mod wrapper {
+pub mod wrapper {
     use iced_core::{mouse::Cursor, Element, Length, Size, Vector, Widget};
-    use iced_widget::container;
+    use iced_widget::{container, renderer::wgpu::{self, primitive::Renderer}};
+
+    use crate::{Grid, GridMessage};
 
     pub fn style<'a, Message, Theme, Renderer>(
-        content: impl Into<Element<'a, Message, Theme, Renderer>>,
+        content: &'a mut Grid<Message, Theme>,
+        //impl Into<&'a mut Element<'a, Message, Theme, Renderer>>,
         style: <Theme as super::Catalog>::Style,
     ) -> Element<'a, Message, Theme, Renderer>
     where
@@ -52,7 +51,7 @@ pub(crate) mod wrapper {
         Message: 'a,
     {
         Wrapper {
-            content: content.into(),
+            content,
             target: Target::Style,
             style,
         }
@@ -79,24 +78,68 @@ pub(crate) mod wrapper {
         }
     }
 
-    pub struct Wrapper<'a, Message, Theme, Renderer>
+
+    pub struct Wrapper<'a, Message, Theme>
     where
-        Renderer: iced_core::Renderer,
         Theme: super::Catalog,
     {
-        pub content: Element<'a, Message, Theme, Renderer>,
+        pub content: &'a Grid<Message, Theme>,
         pub target: Target,
         pub style: <Theme as super::Catalog>::Style,
     }
-
+    impl<'a, Message, Theme, Renderer> From<Wrapper<'a, Message, Theme>>
+        for Element<'a, Message, Theme, Renderer>
+    where
+        Renderer: iced_core::Renderer + 'a,
+        Theme: super::Catalog + 'a,
+        Message: 'a,
+    {
+        fn from(wrapper: Wrapper<'a, Message, Theme>) -> Self {
+            Element::new(wrapper)
+        }
+    }
+//&mut Grid<Message, MyTheme>
     impl<'a, Message, Theme, Renderer> Widget<Message, Theme, Renderer>
-        for Wrapper<'a, Message, Theme, Renderer>
+        for Grid<Message, Theme>
     where
         Renderer: iced_core::Renderer,
         Theme: super::Catalog,
     {
         fn size(&self) -> Size<Length> {
-            self.content.as_widget().size()
+        todo!()
+    }
+    
+        fn layout(
+        &self,
+        tree: &mut iced_core::widget::Tree,
+        renderer: &Renderer,
+        limits: &iced_core::layout::Limits,
+    ) -> iced_core::layout::Node {
+        todo!()
+    }
+    
+        fn draw(
+        &self,
+        tree: &iced_core::widget::Tree,
+        renderer: &mut Renderer,
+        theme: &Theme,
+        style: &iced_core::renderer::Style,
+        layout: iced_core::Layout<'_>,
+        cursor: iced_core::mouse::Cursor,
+        viewport: &iced::Rectangle,
+    ) {
+        todo!()
+    }
+    }
+
+    impl<'a, Message, Theme, Renderer> Widget<Message, Theme, Renderer>
+        for Wrapper<'a, Message, Theme>
+    where
+        Renderer: iced_core::Renderer,
+        Theme: super::Catalog,
+    {
+        fn size(&self) -> Size<Length> {
+            <Grid<Message, Theme> as iced_core::Widget<Message, Theme, Renderer>>::size(self.content)
         }
 
         fn layout(
@@ -105,7 +148,7 @@ pub(crate) mod wrapper {
             renderer: &Renderer,
             limits: &iced_core::layout::Limits,
         ) -> iced_core::layout::Node {
-            self.content.as_widget().layout(state, renderer, limits)
+            self.content.layout(state, renderer, limits)
         }
 
         fn draw(
@@ -137,24 +180,24 @@ pub(crate) mod wrapper {
                 .unwrap_or(*style);
 
             self.content
-                .as_widget()
+                
                 .draw(state, renderer, theme, &text_style, layout, cursor, viewport);
         }
 
         fn tag(&self) -> iced_core::widget::tree::Tag {
-            self.content.as_widget().tag()
+            <Grid<Message, Theme> as iced_core::Widget<Message, Theme, Renderer>>::tag(self.content)
         }
 
         fn state(&self) -> iced_core::widget::tree::State {
-            self.content.as_widget().state()
+            <Grid<Message, Theme> as iced_core::Widget<Message, Theme, Renderer>>::state(self.content)
         }
 
         fn children(&self) -> Vec<iced_core::widget::Tree> {
-            self.content.as_widget().children()
+            <Grid<Message, Theme> as iced_core::Widget<Message, Theme, Renderer>>::children(self.content)
         }
 
         fn diff(&self, tree: &mut iced_core::widget::Tree) {
-            self.content.as_widget().diff(tree)
+            <Grid<Message, Theme> as iced_core::Widget<Message, Theme, Renderer>>::diff(self.content, tree)
         }
 
         fn operate(
@@ -165,25 +208,25 @@ pub(crate) mod wrapper {
             operation: &mut dyn iced_core::widget::Operation,
         ) {
             self.content
-                .as_widget()
+                
                 .operate(state, layout, renderer, operation);
         }
 
-        fn on_event(
-            &mut self,
-            state: &mut iced_core::widget::Tree,
-            event: iced_core::Event,
-            layout: iced_core::Layout<'_>,
-            cursor: Cursor,
-            renderer: &Renderer,
-            clipboard: &mut dyn iced_core::Clipboard,
-            shell: &mut iced_core::Shell<'_, Message>,
-            viewport: &iced_core::Rectangle,
-        ) -> iced_core::event::Status {
-            self.content.as_widget_mut().on_event(
-                state, event, layout, cursor, renderer, clipboard, shell, viewport,
-            )
-        }
+        // fn on_event(
+        //     &mut self,
+        //     state: &mut iced_core::widget::Tree,
+        //     event: iced_core::Event,
+        //     layout: iced_core::Layout<'_>,
+        //     cursor: Cursor,
+        //     renderer: &Renderer,
+        //     clipboard: &mut dyn iced_core::Clipboard,
+        //     shell: &mut iced_core::Shell<'_, Message>,
+        //     viewport: &iced_core::Rectangle,
+        // ) -> iced_core::event::Status {
+        //     self.content.on_event(
+        //         state, event, layout, cursor, renderer, clipboard, shell, viewport,
+        //     )
+        // }
 
         fn mouse_interaction(
             &self,
@@ -194,32 +237,33 @@ pub(crate) mod wrapper {
             renderer: &Renderer,
         ) -> iced_core::mouse::Interaction {
             self.content
-                .as_widget()
+                
                 .mouse_interaction(state, layout, cursor, viewport, renderer)
         }
 
-        fn overlay<'b>(
-            &'b mut self,
-            state: &'b mut iced_core::widget::Tree,
-            layout: iced_core::Layout<'_>,
-            renderer: &Renderer,
-            translation: Vector,
-        ) -> Option<iced_core::overlay::Element<'b, Message, Theme, Renderer>> {
-            self.content
-                .as_widget_mut()
-                .overlay(state, layout, renderer, translation)
-        }
+        // fn overlay<'b>(
+        //     &'b mut self,
+        //     state: &'b mut iced_core::widget::Tree,
+        //     layout: iced_core::Layout<'_>,
+        //     renderer: &Renderer,
+        //     translation: Vector,
+        // ) -> Option<iced_core::overlay::Element<'b, Message, Theme, Renderer>> {
+        //     self.content
+        //         .overlay(state, layout, renderer, translation)
+        // }
     }
 
-    impl<'a, Message, Theme, Renderer> From<Wrapper<'a, Message, Theme, Renderer>>
-        for Element<'a, Message, Theme, Renderer>
-    where
-        Renderer: iced_core::Renderer + 'a,
-        Theme: super::Catalog + 'a,
-        Message: 'a,
-    {
-        fn from(wrapper: Wrapper<'a, Message, Theme, Renderer>) -> Self {
-            Element::new(wrapper)
-        }
-    }
+
 }
+
+        // fn overlay<'b>(
+        //     &'b mut self,
+        //     state: &'b mut iced_core::widget::Tree,
+        //     layout: iced_core::Layout<'_>,
+        //     renderer: &Renderer,
+        //     translation: Vector,
+        // ) -> Option<iced_core::overlay::Element<'b, GridMessage, Theme, Renderer>> {
+        //     self.content
+        //         .as_widget_mut()
+        //         .overlay(state, layout, renderer, translation)
+        // }
