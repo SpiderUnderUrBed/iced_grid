@@ -26,20 +26,45 @@ pub enum GridMessage {
     AddCell(usize),
     Cell(usize, usize, CellMessage),
 }
-
-
 pub enum Cell<'a> {
     Text(String),
     Button {
         label: String,
         on_press: CellMessage,
     },
-    Container(Element<'a, CellMessage>),
-    
+    Container(Arc<RefCell<dyn Fn() -> Element<'a, CellMessage> + 'a>>),
 }
 
+impl<'a> Clone for Cell<'a> {
+    fn clone(&self) -> Self {
+        match self {
+            Cell::Text(content) => Cell::Text(content.clone()),
+            Cell::Button { label, on_press } => Cell::Button {
+                label: label.clone(),
+                on_press: on_press.clone(),
+            },
+            Cell::Container(container) => {
+                Cell::Container(Arc::clone(container))
+            }
+        }
+    }
+}
 
-#[derive(Default)]
+impl Cell<'_> {
+    pub fn view(&self) -> Element<CellMessage> {
+        match self {
+            Cell::Text(content) => Text::new(content.clone()).into(),
+            Cell::Button { label, on_press } => {
+                Button::new(Text::new(label.clone()))
+                    .on_press(on_press.clone())
+                    .into()
+            }
+            Cell::Container(factory) => (factory.borrow())(),
+        }
+    }
+}
+
+#[derive(Default, Clone)]
 pub struct RowData {
     pub cells: Vec<Cell<'static>>,
 }
@@ -67,6 +92,7 @@ impl RowData {
 }
 
    
+
 pub struct Grid<Message, Theme>
 where
     Theme: style::Catalog,
@@ -94,35 +120,17 @@ where
     Theme: style::Catalog + 'a,
     GridMessage: 'a,
 {
-    fn from(grid: &mut Grid<GridMessage, Theme>) -> Self {
-       // let content = grid.create_grid();
-        
-        Element::from(grid)
-    }
+    fn from(grid: Grid<Message, Theme>) -> Self {
+        let style = grid.style.clone(); 
+    
+        Element::new(Wrapper { 
+            content: grid.into(),
+            target: Target::Style,
+            style,
+        })
+    }    
 }
-impl<'a, GridMessage, Theme> From<&&mut Grid<GridMessage, Theme>> for Element<'_, GridMessage, Theme>
-where
-    Theme: style::Catalog + 'a,
-    GridMessage: 'a,
-{
-    fn from(grid: &&mut Grid<GridMessage, Theme>) -> Self {
-       // let content = grid.create_grid();
-        
-        Element::from(grid)
-    }
-}
-// impl<Message, Theme> From<iced::Element<'_, Message, Theme>> for Grid<Message, Theme>
-// where
-//     Theme: style::Catalog,
-// {
-//     fn from(_element: iced::Element<'_, Message, Theme>) -> Self {
-//         Grid {
-//             rows: Vec::new(),
-//             style: Default::default(), 
-//             on_sync: |_| panic!("Conversion from Element not implemented"),
-//         }
-//     }
-// }
+
 
 impl<'a, Message, Theme: style::Catalog> Grid<Message, Theme>
  {
