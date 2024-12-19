@@ -188,6 +188,7 @@ impl<'a, Message, Theme: style::Catalog> Grid<Message, Theme>
     pub fn add_cells_to_all_rows(&mut self, count: usize) {
         for row in &mut self.rows {
             for _ in 0..count {
+                println!("test");
                 row.cells.push(Cell::Text("Default".to_string())); 
             }
         }
