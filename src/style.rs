@@ -44,19 +44,19 @@ pub mod wrapper {
     use iced_core::{layout::Node, mouse::Cursor, Element, Length, Size, Vector, Widget};
     use iced_widget::{button, container, renderer::wgpu::{self, primitive::Renderer}};
  
-    use crate::{Cell, CellMessage, Grid, GridMessage};
+    use crate::{Cell, Grid, GridMessage};
  
-    pub fn style<'a, Message, Theme>
+    pub fn style<'a, Message, Theme, Renderer>
     (
         content: &'a mut Grid<Message, Theme>,
         theme: Theme,
         style: <Theme as super::Catalog>::Style,
-    ) -> Element<'a, Message, Theme, iced_widget::Renderer>
+    ) -> Element<'a, Message, Theme, Renderer>
     where
-        //Renderer: iced_core::Renderer + 'a,
+        Renderer: iced_core::Renderer + 'a,
         Theme: super::Catalog<Themes = iced_core::Theme> + Clone + 'a,
         Message: 'a,
-        iced_core::Element<'a, Message, Theme, iced_widget::Renderer>: From<Grid<Message, Theme>>
+        iced_core::Element<'a, Message, Theme, Renderer>: From<Grid<Message, Theme>>
     {
         Element::new(
             Wrapper {
@@ -104,11 +104,11 @@ pub mod wrapper {
     //     }
     // }
  
-    impl<'a, Inner, Message, Theme> From<Wrapper<'a, Inner, Theme>>
-    for Element<'a, Message, Theme, iced_widget::Renderer>
+    impl<'a, Inner, Message, Theme, Renderer> From<Wrapper<'a, Inner, Theme>>
+    for Element<'a, Message, Theme, Renderer>
         where
-            Inner: Widget<Message, Theme, iced_widget::Renderer> + 'a,
-            //Renderer: iced_core::Renderer + 'a,
+            Inner: Widget<Message, Theme, Renderer> + 'a,
+            Renderer: iced_core::Renderer + 'a,
             Theme: super::Catalog<Themes = iced_core::Theme> + 'a,
             Message: 'a,
         {
@@ -128,14 +128,11 @@ pub mod wrapper {
         pub style: <Theme as super::Catalog>::Style,
         pub target: Style,
     }
-    impl<'a, Message, Theme> Widget<Message, Theme, iced_widget::Renderer> for Grid<Message, Theme>
+    impl<'a, Message, Theme, Renderer> Widget<Message, Theme, Renderer> for Grid<Message, Theme>
     where
-    //iced_widget::renderer::fallback::Renderer<iced_widget::Renderer, iced_tiny_skia::Renderer>
-        //Renderer: iced_renderer::fallback::Renderer<Renderer, Renderer>, 
-        //iced_widget::renderer::fallback::Renderer<iced_widget::Renderer, iced_tiny_skia::Renderer>
-        
+        Renderer: iced_core::Renderer,
         Theme: super::Catalog<Themes = iced_core::Theme> + Clone,
-        iced_core::Element<'a, Message, Theme, iced_widget::Renderer>: From<Grid<Message, Theme>>,
+        iced_core::Element<'a, Message, Theme, Renderer>: From<Grid<Message, Theme>>,
         //iced_core::renderer::Renderer: From<Renderer>, // Ensure Renderer can be cast to the correct type
     {
             fn size(&self) -> Size<Length> {
@@ -145,7 +142,7 @@ pub mod wrapper {
             fn layout(
                 &self,
                 _tree: &mut iced_core::widget::Tree,
-                _renderer: &iced_widget::Renderer,
+                _renderer: &Renderer,
                 limits: &iced_core::layout::Limits,
             ) -> iced_core::layout::Node {
                 let max_size = limits.max();
@@ -204,18 +201,36 @@ pub mod wrapper {
             }
             
             
+ 
             fn draw(
                 &self,
                 tree: &iced_core::widget::Tree,
-                renderer: &mut iced_widget::Renderer,                //iced_widget::Renderer<iced_widget::iced_renderer::fallback::Renderer<iced_widget::iced_renderer::iced_wgpu::Renderer, iced_tiny_skia::Renderer>>,
+                renderer: &mut Renderer,
                 theme: &Theme,
                 style: &iced_core::renderer::Style,
                 layout: iced_core::Layout<'_>,
                 cursor: iced_core::mouse::Cursor,
-                viewport: &iced_core::Rectangle,
-            ) {
+                viewport: &iced::Rectangle,
+            ) 
+                // Theme: crate::style::Catalog,
+                // <Theme as crate::style::Catalog>::Style: Into<iced_widget::container::Style>,
+                // iced_widget::container::Style: From<<Theme as crate::style::Catalog>::Style>
+            {
+                let appearance = Style.appearance(theme, &self.style);
+            
+                renderer.fill_quad(
+                    iced_core::renderer::Quad {
+                        bounds: layout.bounds(),
+                        border: appearance.border,
+                        shadow: Default::default(),
+                    },
+                    appearance
+                        .background
+                        .unwrap_or_else(|| iced_core::Color::TRANSPARENT.into()),
+                );
+            
                 let rows = self.rows.len();
-                let cols = self.rows.get(0).map_or(0, |row| row.cells.len());
+                let cols = self.rows.get(0).map(|row| row.cells.len()).unwrap_or(0);
             
                 for (row_index, row) in self.rows.iter().enumerate() {
                     for (col_index, cell) in row.cells.iter().enumerate() {
@@ -226,81 +241,52 @@ pub mod wrapper {
                             .nth(child_index)
                             .map(|child| child.bounds())
                         {
+                            println!(
+                                "Drawing cell at row: {}, col: {}, bounds: {:?}",
+                                row_index, col_index, bounds
+                            );
+            
+                            let cell_appearance = theme.cell(row_index, col_index);
+                            
+                            // match &self.theme {
+                            //     _ => {
+                                    
+                            //         //println!("Handling all variants of MyTheme");
+                            //     }
+                            // }
+                            
+                            
                             match cell {
-                                _ => {}
-                                // Cell::Text(text) => {
-                                //     //<iced_core::widget::Text<'_, _, _> as iced_core::Widget<CellMessage, iced::Theme, iced_widget::Renderer>>::
-                                //     text.draw(
-                                //         //text,
-                                //         tree,
-                                //         renderer,
-                                //         &theme.resolve_theme(),
-                                //         style,
-                                //         layout,
-                                //         cursor,
-                                //         viewport,
-                                //     );
-                                // }
+                                Cell::Text(text) => {
+                                    text.draw(tree, renderer, &theme.resolve_theme(), style, layout, cursor, viewport);
+                                }
                                 Cell::Button(button) => {
-                                    //<iced_widget::Button<'_, _, _, _> as iced_core::Widget<CellMessage, iced::Theme, iced_widget::Renderer>>::
-                                    button.draw(
-                                        //button,
-                                        tree,
-                                        renderer,
-                                        &theme.resolve_theme(),
-                                        style,
-                                        layout,
-                                        cursor,
-                                        viewport,
-                                    );
+                                    button.draw(tree, renderer, &theme.resolve_theme(), style, layout, cursor, viewport);
                                 }
                                 Cell::Container(container) => {
-                                    container.draw(
-                                        //container,
-                                        tree,
-                                        renderer,
-                                        &theme.resolve_theme(),
-                                        style,
-                                        layout,
-                                        cursor,
-                                        viewport,
-                                    );
+                                    container.draw(tree, renderer, &theme.resolve_theme(), style, layout, cursor, viewport);
                                 }
                             }
+                        } else {
+                            println!(
+                                "Missing child for cell at row: {}, col: {}",
+                                row_index, col_index
+                            );
                         }
                     }
                 }
             }
             
-           
-            // let appearance: <Theme as crate::Catalog>::Style = self.style;
-            // fn draw_background<R: iced_core::Renderer>(
-            //     renderer: &mut R,
-            //     bounds: iced_core::Rectangle,
-            //     appearance: container::Style,
-            // ) {
-            //     renderer.fill_quad(
-            //         iced_core::renderer::Quad {
-            //             bounds,
-            //             border: appearance.border,
-            //             shadow: Default::default(),
-            //         },
-            //         appearance
-            //             .background
-            //             .unwrap_or_else(|| iced_core::Color::TRANSPARENT.into()),
-            //     );
-            // }
-            // draw_background(renderer, layout.bounds(), theme.body(&self.style)); 
 
             
             
             
     }
-    impl<'a, Inner, Message, Theme> Widget<Message, Theme, iced_widget::Renderer>
+    impl<'a, Inner, Message, Theme, Renderer> Widget<Message, Theme, Renderer>
         for Wrapper<'a, Inner, Theme>
     where
-        Inner: Widget<Message, Theme, iced_widget::Renderer> + ?Sized,
-        //Renderer: iced_core::Renderer,
+        Inner: Widget<Message, Theme, Renderer> + ?Sized,
+        Renderer: iced_core::Renderer,
         Theme: super::Catalog<Themes = iced_core::Theme>,
     {
         fn size(&self) -> iced_core::Size<iced_core::Length> {
@@ -310,7 +296,7 @@ pub mod wrapper {
         fn layout(
             &self,
             tree: &mut iced_core::widget::Tree,
-            renderer: &iced_widget::Renderer,
+            renderer: &Renderer,
             limits: &iced_core::layout::Limits,
         ) -> iced_core::layout::Node {
             self.content.layout(tree, renderer, limits)
@@ -319,7 +305,7 @@ pub mod wrapper {
         fn draw(
             &self,
             tree: &iced_core::widget::Tree,
-            renderer: &mut iced_widget::Renderer,
+            renderer: &mut Renderer,
             theme: &Theme,
             style: &iced_core::renderer::Style,
             layout: iced_core::Layout<'_>,
@@ -353,7 +339,7 @@ pub mod wrapper {
             &self,
             state: &mut iced_core::widget::Tree,
             layout: iced_core::Layout<'_>,
-            renderer: &iced_widget::Renderer,
+            renderer: &Renderer,
             operation: &mut dyn iced_core::widget::Operation,
         ) {
             self.content.operate(state, layout, renderer, operation);
@@ -365,7 +351,7 @@ pub mod wrapper {
             layout: iced_core::Layout<'_>,
             cursor: iced_core::mouse::Cursor,
             viewport: &iced_core::Rectangle,
-            renderer: &iced_widget::Renderer,
+            renderer: &Renderer,
         ) -> iced_core::mouse::Interaction {
             self.content.mouse_interaction(state, layout, cursor, viewport, renderer)
         }
