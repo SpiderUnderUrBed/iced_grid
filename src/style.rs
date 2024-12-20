@@ -2,16 +2,16 @@ use iced::Color;
 use iced_widget::container;
 
 
-/// A set of rules that dictate the styling of a [`Table`](crate::Table).
+
 pub trait Catalog 
-//where 
-//iced_widget::container::Style: From<<iced::Theme as crate::style::Catalog>::Style>
+
+
 {
-    /// The supported style of the [`Catalog`].
+    
     type Style: Default + Clone;
 
-    // fn generate(style: &Self::Style, theme: &crate::Theme) -> iced_widget::container::Style;
-    /// The header [`Style`](iced_widget::container::Style) of the [`Catalog`].
+    
+    
     fn body(&self, style: &Self::Style) -> container::Style;
     fn cell(&self, _row: usize, _col: usize) -> container::Style;
 }
@@ -32,21 +32,21 @@ impl Catalog for iced_core::Theme {
             ..Default::default()
         }
     }
-    // fn generate(style: &Self::Style, _theme: &crate::Theme) -> iced_widget::container::Style {
-    //     style.clone() // Clone the style directly
-    // }
+    
+    
+    
 }
 
 
 pub mod wrapper {
-    use iced_core::{mouse::Cursor, Element, Length, Size, Vector, Widget};
+    use iced_core::{layout::Node, mouse::Cursor, Element, Length, Size, Vector, Widget};
     use iced_widget::{container, renderer::wgpu::{self, primitive::Renderer}};
 
-    use crate::{Grid, GridMessage};
+    use crate::{Cell, Grid, GridMessage};
 
     pub fn style<'a, Message, Theme, Renderer>(
         content: &'a mut Grid<Message, Theme>,
-        //impl Into<&'a mut Element<'a, Message, Theme, Renderer>>,
+        
         style: <Theme as super::Catalog>::Style,
     ) -> Element<'a, Message, Theme, Renderer>
     where
@@ -62,13 +62,13 @@ pub mod wrapper {
                 style,
             }
         )
-        //.into()
+        
         
     }
 
     pub enum Target {
         Style,
-        //Cell,
+        
     }
 
     impl Target {
@@ -116,20 +116,47 @@ pub mod wrapper {
         iced_core::Element<'a, Message, Theme, Renderer>: From<Grid<Message, Theme>>
         {
             fn size(&self) -> Size<Length> {
-                // Convert to the correct type using `to_element()`
+                
                 let element = self.to_element();
                 element.as_widget().size()
             }
             
 
             fn layout(
-            &self,
-            tree: &mut iced_core::widget::Tree,
-            renderer: &Renderer,
-            limits: &iced_core::layout::Limits,
-        ) -> iced_core::layout::Node {
-            self.layout(tree, renderer, limits)
-        }
+                &self,
+                _tree: &mut iced_core::widget::Tree,
+                _renderer: &Renderer,
+                limits: &iced_core::layout::Limits,
+            ) -> iced_core::layout::Node {
+                
+                let width = self.width;
+                let height = self.height;
+                let cell_width = width / self.rows[0].cells.len() as f32;
+                let cell_height = height / self.rows.len() as f32;
+            
+                let mut children = Vec::new();
+            
+                
+                for (row_index, row) in self.rows.iter().enumerate() {
+                    for (cell_index, _cell) in row.cells.iter().enumerate() {
+                        let size = iced_core::Size {
+                            width: cell_width,
+                            height: cell_height,
+                        };
+            
+                        let position = iced_core::Point {
+                            x: cell_index as f32 * cell_width,
+                            y: row_index as f32 * cell_height,
+                        };
+                 
+                        let mut child = iced_core::layout::Node::new(size).move_to(position);
+            
+                        children.push(child);
+                    }
+                }
+                iced_core::layout::Node::with_children(iced_core::Size::new(width, height), children)
+            }
+            
 
             fn draw(
             &self,
@@ -185,13 +212,13 @@ pub mod wrapper {
             cursor: iced_core::mouse::Cursor,
             viewport: &iced_core::Rectangle,
         ) {
-            // Custom rendering logic
+            
     
             self.content
                 .draw(tree, renderer, theme, style, layout, cursor, viewport);
         }
     
-        // Forward remaining methods to the wrapped widget
+        
         fn tag(&self) -> iced_core::widget::tree::Tag {
             self.content.tag()
         }
@@ -233,14 +260,14 @@ pub mod wrapper {
 
 }
 
-        // fn overlay<'b>(
-        //     &'b mut self,
-        //     state: &'b mut iced_core::widget::Tree,
-        //     layout: iced_core::Layout<'_>,
-        //     renderer: &Renderer,
-        //     translation: Vector,
-        // ) -> Option<iced_core::overlay::Element<'b, GridMessage, Theme, Renderer>> {
-        //     self.content
-        //         .as_widget_mut()
-        //         .overlay(state, layout, renderer, translation)
-        // }
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        

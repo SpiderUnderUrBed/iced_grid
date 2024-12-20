@@ -1,5 +1,5 @@
 use iced::{
-    widget::{Button, Text}, Element, Renderer, Theme
+    advanced::widget, widget::{Button, Text}, Element, Renderer, Size, Theme
 };
 
 use iced_widget::{container, scrollable, Column, Container, Row};
@@ -73,7 +73,9 @@ where
     rows: Vec<RowData>,
     pub style: <Theme as style::Catalog>::Style,
     on_sync: fn(scrollable::AbsoluteOffset) -> Message,
-    
+    width: f32,
+    height: f32,
+    intrinsic_size: Size,
 }
 
 
@@ -83,8 +85,6 @@ where
     GridMessage: 'a,
 {
     fn from(grid: Grid<GridMessage, Theme>) -> Self {
-       
-        
         Element::from(grid)
     }
 }
@@ -93,8 +93,8 @@ impl<'a, Message, Theme: style::Catalog> Grid<Message, Theme>
 
 
  {
-    pub fn new(rows: Vec<RowData>, style: <Theme as style::Catalog>::Style, on_sync: fn(scrollable::AbsoluteOffset) -> Message) -> Self {
-        Self { rows, style, on_sync }
+    pub fn new(rows: Vec<RowData>, style: <Theme as style::Catalog>::Style, on_sync: fn(scrollable::AbsoluteOffset) -> Message, width: f32, height: f32, intrinsic_size: Size) -> Self {
+        Self { rows, style, on_sync, width, height, intrinsic_size }
     }
     
     pub fn style(&mut self, style: impl Into<<Theme as style::Catalog>::Style>) {
@@ -176,11 +176,6 @@ impl<'a, Message, Theme: style::Catalog> Grid<Message, Theme>
                             .into()
                     }
                     Cell::Container(element) => container("test").into(),
-                    
-                    
-                    
-                    
-                    
                 };
                 row_view = row_view.push(cell_view);
             }

@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+trace = "*"
 iced = { version = "0.13", features = ["advanced", "default", "canvas"] }
 iced_core = "0.13"
 iced_widget = "0.13"
-iced_tiny_skia = "0.13.0"
