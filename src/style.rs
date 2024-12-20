@@ -1,13 +1,17 @@
 use iced::Color;
 use iced_widget::container;
-//use iced_core::Renderer;
 
+
+/// A set of rules that dictate the styling of a [`Table`](crate::Table).
 pub trait Catalog 
-
-
+//where 
+//iced_widget::container::Style: From<<iced::Theme as crate::style::Catalog>::Style>
 {
+    /// The supported style of the [`Catalog`].
     type Style: Default + Clone;
-    
+
+    // fn generate(style: &Self::Style, theme: &crate::Theme) -> iced_widget::container::Style;
+    /// The header [`Style`](iced_widget::container::Style) of the [`Catalog`].
     fn body(&self, style: &Self::Style) -> container::Style;
     fn cell(&self, _row: usize, _col: usize) -> container::Style;
 }
@@ -28,9 +32,9 @@ impl Catalog for iced_core::Theme {
             ..Default::default()
         }
     }
-    
-    
-    
+    // fn generate(style: &Self::Style, _theme: &crate::Theme) -> iced_widget::container::Style {
+    //     style.clone() // Clone the style directly
+    // }
 }
 
 
@@ -64,7 +68,7 @@ pub mod wrapper {
 
     pub enum Target {
         Style,
-        
+        //Cell,
     }
 
     impl Target {
