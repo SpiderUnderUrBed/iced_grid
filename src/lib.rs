@@ -2,13 +2,12 @@ use iced::{
     advanced::widget, widget::{Button, Text}, Element, Renderer, Size, Theme
 };
 
-use iced_widget::{container, scrollable, Column, Container, Row};
+use iced_widget::{button, container, scrollable, Column, Container, Row};
 
 use std::sync::Arc;
 use std::cell::RefCell;
-
-use style::wrapper::{Target, Wrapper, 
-};
+use crate::style::wrapper::Style;
+use style::wrapper::Wrapper;
 pub use style::Catalog;
 pub mod style;
 
@@ -28,12 +27,14 @@ pub enum GridMessage {
 
 
 pub enum Cell<'a> {
-    Text(String),
-    Button {
-        label: String,
-        on_press: CellMessage,
-    },
-    Container(Element<'a, CellMessage>),
+    Text(Text<'a, Theme>),
+    Button(Button<'a, CellMessage, Theme>),
+    // Button {
+    //     button: 
+    //     // label: String,
+    //     // on_press: CellMessage,
+    // },
+    Container(Container<'a, CellMessage>),
     
 }
 
@@ -45,14 +46,14 @@ pub struct RowData {
 
 impl RowData {
     pub fn push_text(&mut self, content: String) {
-        self.cells.push(Cell::Text(content));
+        self.cells.push(Cell::Text(Text::new(content)));
     }
 
     pub fn push_button(&mut self, label: String, on_press: CellMessage) {
-        self.cells.push(Cell::Button { label, on_press });
+        self.cells.push(Cell::Button(Button::new(Text::new(label)).on_press(on_press)))
     }
     pub fn push_container(&mut self, container: Container<'static, CellMessage>) {
-        self.cells.push(Cell::Container(Element::new(container)));
+        self.cells.push(Cell::Container(container));
     }
     
 
@@ -72,6 +73,7 @@ where
 {
     rows: Vec<RowData>,
     pub style: <Theme as style::Catalog>::Style,
+    pub theme: Theme,
     on_sync: fn(scrollable::AbsoluteOffset) -> Message,
     width: f32,
     height: f32,
@@ -89,12 +91,12 @@ where
     }
 }
 
-impl<'a, Message, Theme: style::Catalog> Grid<Message, Theme>
+impl<'a, Message, Theme: style::Catalog<Themes = iced_core::Theme> + Clone> Grid<Message, Theme>
 
 
  {
-    pub fn new(rows: Vec<RowData>, style: <Theme as style::Catalog>::Style, on_sync: fn(scrollable::AbsoluteOffset) -> Message, width: f32, height: f32, intrinsic_size: Size) -> Self {
-        Self { rows, style, on_sync, width, height, intrinsic_size }
+    pub fn new(rows: Vec<RowData>, style: <Theme as style::Catalog>::Style, on_sync: fn(scrollable::AbsoluteOffset) -> Message, width: f32, height: f32, intrinsic_size: Size, theme: Theme) -> Self {
+        Self { rows, style, on_sync, width, height, intrinsic_size, theme }
     }
     
     pub fn style(&mut self, style: impl Into<<Theme as style::Catalog>::Style>) {
@@ -137,7 +139,8 @@ impl<'a, Message, Theme: style::Catalog> Grid<Message, Theme>
     pub fn add_cells_to_row(&mut self, row_index: usize, count: usize) {
         let row = self.get_row(row_index); 
         for _ in 0..count {
-            row.cells.push(Cell::Text("Default".to_string())); 
+            row.cells.push(Cell::Text(Text::new("Default"))); 
+            //"Default".to_string()
         }
     }
 
@@ -145,7 +148,7 @@ impl<'a, Message, Theme: style::Catalog> Grid<Message, Theme>
     pub fn add_cells_to_all_rows(&mut self, count: usize) {
         for row in &mut self.rows {
             for _ in 0..count {
-                row.cells.push(Cell::Text("Default".to_string())); 
+                row.cells.push(Cell::Text(Text::new("Default"))); 
             }
         }
     }
@@ -154,37 +157,14 @@ impl<'a, Message, Theme: style::Catalog> Grid<Message, Theme>
         Element::new(
             Wrapper {
                 content: self,
-                target: Target::Style,
+                target: Style,
+                theme: self.theme.clone(),
                 style: self.style.clone(),
             }
         )
     }
     
 
-    pub fn create_grid(&self) -> Column<'_, GridMessage> {
-        let mut column = Column::new().spacing(10);
-
-        for (row_index, row) in self.rows.iter().enumerate() {
-            let mut row_view = Row::new().spacing(10);
-
-            for (cell_index, cell) in row.cells.iter().enumerate() {
-                let cell_view: Element<GridMessage> = match cell {
-                    Cell::Text(ref text) => Text::new(text.clone()).into(),
-                    Cell::Button { ref label, on_press } => {
-                        Button::new(Text::new(label.clone()))
-                            .on_press(GridMessage::Cell(row_index, cell_index, on_press.clone()))
-                            .into()
-                    }
-                    Cell::Container(element) => container("test").into(),
-                };
-                row_view = row_view.push(cell_view);
-            }
-
-            column = column.push(row_view);
-        }
-
-        column
-    }
 
     pub fn view(self) -> iced::Element<'a, GridMessage>
     where
@@ -195,8 +175,5 @@ impl<'a, Message, Theme: style::Catalog> Grid<Message, Theme>
     {
         iced::Element::from(self) 
     }
-    
-    
-    
-
 }
+    
