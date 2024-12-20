@@ -3,6 +3,7 @@ use iced::{
 };
 
 
+// use iced_core::overlay::Element;
 use iced_widget::{container, scrollable, Column, Container, Row};
 
 use std::sync::Arc;
@@ -74,6 +75,7 @@ where
     rows: Vec<RowData>,
     pub style: <Theme as style::Catalog>::Style,
     on_sync: fn(scrollable::AbsoluteOffset) -> Message,
+    //element: Element<'static, Message, Theme, Renderer>
 }
 // impl<'a, GridMessage, Theme> From<Grid<GridMessage, Theme>> for Element<'_, GridMessage, Theme>
 // where
@@ -89,28 +91,46 @@ where
 //         })
 //     }
 // }
-impl<'a, GridMessage, Theme> From<&mut Grid<GridMessage, Theme>> for Element<'_, GridMessage, Theme>
+impl<'a, GridMessage, Theme> From<Grid<GridMessage, Theme>> for Element<'_, GridMessage, Theme>
 where
     Theme: style::Catalog + 'a,
     GridMessage: 'a,
 {
-    fn from(grid: &mut Grid<GridMessage, Theme>) -> Self {
+    fn from(grid: Grid<GridMessage, Theme>) -> Self {
        // let content = grid.create_grid();
         
         Element::from(grid)
     }
 }
-impl<'a, GridMessage, Theme> From<&&mut Grid<GridMessage, Theme>> for Element<'_, GridMessage, Theme>
-where
-    Theme: style::Catalog + 'a,
-    GridMessage: 'a,
-{
-    fn from(grid: &&mut Grid<GridMessage, Theme>) -> Self {
-       // let content = grid.create_grid();
+// impl <Message>Into<iced_core::Element<'_, Message, Theme, Renderer>> for Grid<Message, Theme>
+// {
+//     fn into(self) -> iced_core::Element<'static, Message, Theme, Renderer> {
+//         todo!()
+//     }
+// }
+
+// impl<'a, GridMessage, Theme> From<&mut Grid<GridMessage, Theme>> for Element<'_, GridMessage, Theme>
+// where
+//     Theme: style::Catalog + 'a,
+//     GridMessage: 'a,
+// {
+//     fn from(grid: &mut Grid<GridMessage, Theme>) -> Self {
+//        // let content = grid.create_grid();
         
-        Element::from(grid)
-    }
-}
+//         Element::from(grid)
+//     }
+// }
+// impl<'a, GridMessage, Theme> From<&&mut Grid<GridMessage, Theme>> for Element<'_, GridMessage, Theme>
+// where
+//     Theme: style::Catalog + 'a,
+//     GridMessage: 'a,
+// {
+//     fn from(grid: &&mut Grid<GridMessage, Theme>) -> Self {
+//        // let content = grid.create_grid();
+        
+//         Element::from(grid)
+//     }
+// }
 // impl<Message, Theme> From<iced::Element<'_, Message, Theme>> for Grid<Message, Theme>
 // where
 //     Theme: style::Catalog,
@@ -125,8 +145,10 @@ where
 // }
 
 impl<'a, Message, Theme: style::Catalog> Grid<Message, Theme>
+// where
+// Renderer: iced_core::Renderer,
  {
-    pub fn new(rows: Vec<RowData>, style: <Theme as style::Catalog>::Style, on_sync: fn(scrollable::AbsoluteOffset) -> Message ) -> Self {
+    pub fn new(rows: Vec<RowData>, style: <Theme as style::Catalog>::Style, on_sync: fn(scrollable::AbsoluteOffset) -> Message) -> Self {
         Self { rows, style, on_sync }
     }
     
@@ -166,8 +188,6 @@ impl<'a, Message, Theme: style::Catalog> Grid<Message, Theme>
             self.rows.push(RowData::default());
         }
     }
-
-    
     
     pub fn add_cells_to_row(&mut self, row_index: usize, count: usize) {
         let row = self.get_row(row_index); 
@@ -185,6 +205,9 @@ impl<'a, Message, Theme: style::Catalog> Grid<Message, Theme>
         }
     }
 
+    pub fn to_element(&self) -> iced_core::Element<'static, Message, Theme, Renderer> {
+        todo!()
+    }
 
     pub fn create_grid(&self) -> Column<'_, GridMessage> {
         let mut column = Column::new().spacing(10);
