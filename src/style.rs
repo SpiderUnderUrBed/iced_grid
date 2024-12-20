@@ -227,21 +227,24 @@ pub mod wrapper {
                             .map(|child| child.bounds())
                         {
                             match cell {
-                                Cell::Text(text) => {
-                                    <iced_core::widget::Text<'_, _, _> as iced_core::Widget<CellMessage, iced::Theme, iced_widget::Renderer>>::draw(
-                                        text,
-                                        tree,
-                                        renderer,
-                                        &theme.resolve_theme(),
-                                        style,
-                                        layout,
-                                        cursor,
-                                        viewport,
-                                    );
-                                }
+                                _ => {}
+                                // Cell::Text(text) => {
+                                //     //<iced_core::widget::Text<'_, _, _> as iced_core::Widget<CellMessage, iced::Theme, iced_widget::Renderer>>::
+                                //     text.draw(
+                                //         //text,
+                                //         tree,
+                                //         renderer,
+                                //         &theme.resolve_theme(),
+                                //         style,
+                                //         layout,
+                                //         cursor,
+                                //         viewport,
+                                //     );
+                                // }
                                 Cell::Button(button) => {
-                                    <iced_widget::Button<'_, _, _, _> as iced_core::Widget<CellMessage, iced::Theme, iced_widget::Renderer>>::draw(
-                                        button,
+                                    //<iced_widget::Button<'_, _, _, _> as iced_core::Widget<CellMessage, iced::Theme, iced_widget::Renderer>>::
+                                    button.draw(
+                                        //button,
                                         tree,
                                         renderer,
                                         &theme.resolve_theme(),
@@ -252,8 +255,8 @@ pub mod wrapper {
                                     );
                                 }
                                 Cell::Container(container) => {
-                                    <iced_widget::Container<'_, _, _, _> as iced_core::Widget<CellMessage, iced::Theme, iced_widget::Renderer>>::draw(
-                                        container,
+                                    container.draw(
+                                        //container,
                                         tree,
                                         renderer,
                                         &theme.resolve_theme(),
