@@ -1,5 +1,5 @@
 use iced::{
-    advanced::widget, widget::{Button, Text}, Element, Renderer, Size, Theme
+    widget::{Button, Text}, Element, Renderer, Size, Theme
 };
 
 use iced_widget::{button, container, scrollable, Column, Container, Row};
@@ -91,8 +91,8 @@ where
     }
 }
 
-impl<'a, Message, Theme: style::Catalog<Themes = iced_core::Theme> + Clone> Grid<Message, Theme>
-
+impl<'a, Message, Theme: style::Catalog<Themes = iced_core::Theme, Style = iced_widget::container::Style> + Clone> Grid<Message, Theme>
+//Theme: super::Catalog<Style = iced_widget::container::Style>,
 
  {
     pub fn new(rows: Vec<RowData>, style: <Theme as style::Catalog>::Style, on_sync: fn(scrollable::AbsoluteOffset) -> Message, width: f32, height: f32, intrinsic_size: Size, theme: Theme) -> Self {
@@ -103,6 +103,7 @@ impl<'a, Message, Theme: style::Catalog<Themes = iced_core::Theme> + Clone> Grid
         self.style = style.into();
     }
     
+    //pub fn get_grid
 
     pub fn get_cell(&mut self, row_index: usize, cell_index: usize) -> Option<&mut Cell<'static>> {
         self.rows.get_mut(row_index).and_then(|row| row.cells.get_mut(cell_index))
@@ -152,7 +153,7 @@ impl<'a, Message, Theme: style::Catalog<Themes = iced_core::Theme> + Clone> Grid
             }
         }
     }
-
+//Theme: super::Catalog<Style = iced_widget::container::Style>,
     pub fn to_element(&'a self) -> iced_core::Element<'a, Message, Theme, Renderer> {
         Element::new(
             Wrapper {
@@ -170,10 +171,11 @@ impl<'a, Message, Theme: style::Catalog<Themes = iced_core::Theme> + Clone> Grid
     where
         Message: 'a,
         GridMessage: 'a,
-        Theme: style::Catalog<Style = iced_widget::container::Style>, 
-        iced::Element<'a, GridMessage>: From<Grid<Message, Theme>>, 
+        Theme: style::Catalog<Style = iced_widget::container::Style>,
+        iced::Element<'a, GridMessage>: From<Grid<Message, Theme>>,
     {
-        iced::Element::from(self) 
+        iced::Element::from(self)
     }
+    
 }
     

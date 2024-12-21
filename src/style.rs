@@ -1,6 +1,9 @@
 use iced::Color;
+use iced_core::Widget;
 use iced_widget::container;
- 
+use wrapper::Wrapper;
+pub mod renderer;
+
  
  
 pub trait Catalog 
@@ -11,8 +14,8 @@ pub trait Catalog
     type Style: Default + Clone;
     type Themes;
     
-    fn body(&self, style: &Self::Style) -> container::Style;
-    fn cell(&self, _row: usize, _col: usize) -> container::Style;
+    fn body(&self, style: &Self::Style) -> Self::Style;
+    fn cell(&self, _row: usize, _col: usize) -> Self::Style;
     fn resolve_theme(&self) -> Self::Themes;
 }
  
@@ -40,23 +43,25 @@ impl Catalog for iced_core::Theme {
 
  
 pub mod wrapper {
-    use iced::Theme;
-    use iced_core::{layout::Node, mouse::Cursor, Element, Length, Size, Vector, Widget};
-    use iced_widget::{button, container, renderer::wgpu::{self, primitive::Renderer}};
+    use iced::{Font, Pixels, Theme};
+    use iced_core::{layout::Node, mouse::Cursor, text::Renderer, Element, Length, Size, Vector, Widget};
+    use iced_widget::{button, canvas::path::lyon_path::geom::euclid::default, container, renderer::wgpu::{self}};
  
     use crate::{Cell, Grid, GridMessage};
+
+    use super::renderer;
  
     pub fn style<'a, Message, Theme, Renderer>
     (
         content: &'a mut Grid<Message, Theme>,
         theme: Theme,
         style: <Theme as super::Catalog>::Style,
-    ) -> Element<'a, Message, Theme, Renderer>
+    ) -> Element<'a, Message, Theme, crate::Renderer>
     where
-        Renderer: iced_core::Renderer + 'a,
-        Theme: super::Catalog<Themes = iced_core::Theme> + Clone + 'a,
+        //Renderer: iced_core::Renderer + 'a,
+        Theme: super::Catalog<Themes = iced_core::Theme, Style = iced_widget::container::Style> + Clone + 'a,
         Message: 'a,
-        iced_core::Element<'a, Message, Theme, Renderer>: From<Grid<Message, Theme>>
+        iced_core::Element<'a, Message, Theme, crate::Renderer>: From<Grid<Message, Theme>>
     {
         Element::new(
             Wrapper {
@@ -79,7 +84,8 @@ pub mod wrapper {
             style: &<Theme as super::Catalog>::Style,
         ) -> container::Style
         where
-            Theme: super::Catalog,
+           // Theme: super::Catalog,
+            Theme: super::Catalog<Style = iced_widget::container::Style>,
         {
             theme.body(style) // This can stay the same if it applies to the new Style struct
         }
@@ -116,7 +122,17 @@ pub mod wrapper {
                 Element::new(wrapper)
             }
     }
- 
+//     impl<'a, Message, Theme> From<Grid<Message, Theme>>
+//     for iced::Element<'a, Message>
+// where
+//     Message: 'a,
+//     Theme: crate::style::Catalog<Style = iced_widget::container::Style, Themes = iced::Theme> + Clone, 
+// {
+//     fn from(grid: Grid<Message, Theme>) -> Self {
+//         iced::Element::new(grid)
+//     }
+// }
+
     pub struct Wrapper<'a, Inner, Theme>
     where
         Inner: ?Sized,
@@ -128,13 +144,18 @@ pub mod wrapper {
         pub style: <Theme as super::Catalog>::Style,
         pub target: Style,
     }
-    impl<'a, Message, Theme, Renderer> Widget<Message, Theme, Renderer> for Grid<Message, Theme>
-    where
-        Renderer: iced_core::Renderer,
-        Theme: super::Catalog<Themes = iced_core::Theme> + Clone,
-        iced_core::Element<'a, Message, Theme, Renderer>: From<Grid<Message, Theme>>,
-        //iced_core::renderer::Renderer: From<Renderer>, // Ensure Renderer can be cast to the correct type
-    {
+
+impl<'a, Message, Theme, Renderer> Widget<Message, Theme, Renderer> for Grid<Message, Theme>
+where
+    Renderer: iced_core::text::Renderer<Font = iced_core::Font>,
+    //Renderer: iced_core::Renderer + crate::style::renderer::Renderer,
+    //crate::style::renderer::Renderer +
+    //Renderer: renderer::Renderer<iced::Renderer, iced_tiny_skia::Renderer>,
+    //iced::advanced::Renderer,
+    Theme: super::Catalog<Style = iced_widget::container::Style, Themes = iced::Theme> + Clone,
+    //iced_core::Element<'a, Message, Theme, Renderer>,
+   // crate::Renderer: iced_core::Renderer,
+{
             fn size(&self) -> Size<Length> {
                 let element = self.to_element();
                 element.as_widget().size()
@@ -211,13 +232,10 @@ pub mod wrapper {
                 layout: iced_core::Layout<'_>,
                 cursor: iced_core::mouse::Cursor,
                 viewport: &iced::Rectangle,
-            ) 
-                // Theme: crate::style::Catalog,
-                // <Theme as crate::style::Catalog>::Style: Into<iced_widget::container::Style>,
-                // iced_widget::container::Style: From<<Theme as crate::style::Catalog>::Style>
-            {
+            ) {
                 let appearance = Style.appearance(theme, &self.style);
             
+                // Draw the grid background
                 renderer.fill_quad(
                     iced_core::renderer::Quad {
                         bounds: layout.bounds(),
@@ -247,24 +265,56 @@ pub mod wrapper {
                             );
             
                             let cell_appearance = theme.cell(row_index, col_index);
-                            
-                            // match &self.theme {
-                            //     _ => {
-                                    
-                            //         //println!("Handling all variants of MyTheme");
-                            //     }
-                            // }
-                            
-                            
+            
+                            // Draw the cell background
+                            renderer.fill_quad(
+                                iced_core::renderer::Quad {
+                                    bounds,
+                                    border: cell_appearance.border,
+                                    shadow: Default::default(),
+                                },
+                                cell_appearance
+                                    .background
+                                    .unwrap_or_else(|| iced_core::Color::TRANSPARENT.into()),
+                            );
+            
+                            // Handle specific cell content
                             match cell {
                                 Cell::Text(text) => {
-                                    text.draw(tree, renderer, &theme.resolve_theme(), style, layout, cursor, viewport);
+                                    // Define text properties
+                                    let rendered_text = iced_core::Text {
+                                        content: "e".to_string(), // Ensure it's a String
+                                        bounds: bounds.size(),
+                                        font: iced::Font {
+                                            family: iced::font::Family::Cursive, // You can replace this with any font family you prefer
+                                            weight: iced::font::Weight::Normal, // You can use Normal, Bold, or other weights as needed
+                                            stretch: iced::font::Stretch::Normal, // Stretch can be Normal, Condensed, or Expanded
+                                            style: iced::font::Style::Italic, // Style can be Regular, Italic, or other styles
+                                        },
+                                        size: Pixels::from(20.0), // Customize as needed
+                                        line_height: iced_core::text::LineHeight::Absolute(Pixels::from(20.0)),
+                                        horizontal_alignment: iced_core::alignment::Horizontal::Center,
+                                        vertical_alignment: iced_core::alignment::Vertical::Center,
+                                        shaping: iced_core::text::Shaping::Basic, // Basic shaping for most text
+                                        wrapping: iced_core::text::Wrapping::None, // Adjust as necessary
+                                    };
+                                    
+                                    // Render the text
+                                    renderer.fill_text(
+                                        rendered_text,
+                                        bounds.position(),
+                                        cell_appearance.text_color.unwrap_or(iced_core::Color::BLACK),
+                                        bounds,
+                                    );
+                                    
                                 }
                                 Cell::Button(button) => {
-                                    button.draw(tree, renderer, &theme.resolve_theme(), style, layout, cursor, viewport);
+                                    // Placeholder for button rendering
+                                    println!("Rendering button at row: {}, col: {}", row_index, col_index);
                                 }
                                 Cell::Container(container) => {
-                                    container.draw(tree, renderer, &theme.resolve_theme(), style, layout, cursor, viewport);
+                                    // Placeholder for container rendering
+                                    println!("Rendering container at row: {}, col: {}", row_index, col_index);
                                 }
                             }
                         } else {
@@ -277,11 +327,13 @@ pub mod wrapper {
                 }
             }
             
-
             
-            
-            
+                // Optionally draw additional content by delegating
+                // self.to_element().as_widget().draw(tree, renderer, theme, style, layout, cursor, viewport);
+            }
+                
     }
+
     impl<'a, Inner, Message, Theme, Renderer> Widget<Message, Theme, Renderer>
         for Wrapper<'a, Inner, Theme>
     where
@@ -356,6 +408,131 @@ pub mod wrapper {
             self.content.mouse_interaction(state, layout, cursor, viewport, renderer)
         }
     }
- 
- 
-}
+// renderer.fill_quad(
+//     iced_core::renderer::Quad {
+//         bounds,
+//         border: cell_appearance.border,
+//         shadow: Default::default(),
+//     },
+//     cell_appearance
+//         .background
+//         .unwrap_or_else(|| iced_core::Color::TRANSPARENT.into()),
+// );
+                                    // let final_renderer = crate::Renderer::new(default_font, default_text_size);
+                                    // final_renderer.fill_text(text, position, color, clip_bounds);
+                                    // renderer.draw(pixels, clip_mask, viewport, damage, background_color, overlay);
+                                    // renderer.fill_quad(
+                                    //     iced_core::renderer::Quad {
+                                    //         bounds,
+                                    //         border: cell_appearance.border,
+                                    //         shadow: Default::default(),
+                                    //     },
+                                    //     cell_appearance
+                                    //         .background
+                                    //         .unwrap_or_else(|| iced_core::Color::LIGHT_GRAY.into()),
+                                    // );
+                                    // //renderer::draw_text()
+            
+                                    // // Optionally, draw text or symbols inside the button
+                                    // renderer.draw_text(
+                                    //     &iced_core::text::Text {
+                                    //         content: "Button".to_string(), // Placeholder text
+                                    //         bounds: layout.bounds().size(),
+                                    //         size: iced::Pixels(14.0),
+                                    //         //color: iced::Color::BLACK,
+                                    //         //cell_appearance.text_color.unwrap_or(iced_core::Color::BLACK),
+                                    //         font: iced_core::Font::default(),
+                                    //         horizontal_alignment: iced_core::alignment::Horizontal::Center,
+                                    //         vertical_alignment: iced_core::alignment::Vertical::Center,
+                                    //         line_height: todo!(),
+                                    //         shaping: todo!(),
+                                    //         wrapping: todo!(),
+                                    //     },
+                                    // );
+                // let appearance = Style.appearance(theme, &self.style);
+            
+                // renderer.fill_quad(
+                //     iced_core::renderer::Quad {
+                //         bounds: layout.bounds(),
+                //         border: appearance.border,
+                //         shadow: Default::default(),
+                //     },
+                //     appearance
+                //         .background
+                //         .unwrap_or_else(|| iced_core::Color::TRANSPARENT.into()),
+                // );
+            
+                // let rows = self.rows.len();
+                // let cols = self.rows.get(0).map(|row| row.cells.len()).unwrap_or(0);
+            
+                // for (row_index, row) in self.rows.iter().enumerate() {
+                //     for (col_index, cell) in row.cells.iter().enumerate() {
+                //         let child_index = row_index * cols + col_index;
+            
+                //         if let Some(bounds) = layout
+                //             .children()
+                //             .nth(child_index)
+                //             .map(|child| child.bounds())
+                //         {
+                //             println!(
+                //                 "Drawing cell at row: {}, col: {}, bounds: {:?}",
+                //                 row_index, col_index, bounds
+                //             );
+            
+                //             let cell_appearance = theme.cell(row_index, col_index);
+                                               
+                //             match cell {
+                //                 Cell::Text(text) => {
+                                
+                //                 }
+                //                 Cell::Button(button) => {
+                //                     renderer.fill_quad(
+                //                         iced_core::renderer::Quad {
+                //                             bounds,
+                //                             border: cell_appearance.border,
+                //                             shadow: Default::default(),
+                //                         },
+                //                         cell_appearance
+                //                             .background
+                //                             .unwrap_or_else(|| iced_core::Color::LIGHT_GRAY.into()),
+                //                     );
+            
+                //                     // Optionally, draw text or symbols inside the button
+                //                     renderer.draw_text(
+                //                         &iced_core::text::Text {
+                //                             content: "Button".to_string(), // Placeholder text
+                //                             bounds: layout.bounds().size(),
+                //                             size: iced::Pixels(14.0),
+                //                             //color: iced::Color::BLACK,
+                //                             //cell_appearance.text_color.unwrap_or(iced_core::Color::BLACK),
+                //                             font: iced_core::Font::default(),
+                //                             horizontal_alignment: iced_core::alignment::Horizontal::Center,
+                //                             vertical_alignment: iced_core::alignment::Vertical::Center,
+                //                             line_height: todo!(),
+                //                             shaping: todo!(),
+                //                             wrapping: todo!(),
+                //                         },
+                //                     );
+                //                 }
+                //                 Cell::Container(container) => {
+                //                     //let container_appearance = theme.container();
+                //                     renderer.fill_quad(
+                //                         iced_core::renderer::Quad {
+                //                             bounds,
+                //                             border: cell_appearance.border,
+                //                             shadow: Default::default(),
+                //                         },
+                //                         cell_appearance
+                //                             .background
+                //                             .unwrap_or_else(|| iced_core::Color::TRANSPARENT.into()),
+                //                     );
+                //                 }
+                //             }
+                //         } else {
+                //             println!(
+                //                 "Missing child for cell at row: {}, col: {}",
+                //                 row_index, col_index
+                //             );
+                //         }
+                //     }
+                // }
