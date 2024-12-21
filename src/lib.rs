@@ -91,7 +91,7 @@ where
     }
 }
 
-impl<'a, Message, Theme: style::Catalog<Themes = iced_core::Theme, Style = iced_widget::container::Style> + Clone> Grid<Message, Theme>
+impl<'a, Message, Theme: style::Catalog<Themes = iced_core::Theme, Style = iced_widget::container::Style> + iced_widget::text::Catalog  + iced_widget::container::Catalog + Clone> Grid<Message, Theme>
 //Theme: super::Catalog<Style = iced_widget::container::Style>,
 
  {

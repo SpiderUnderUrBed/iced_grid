@@ -40,9 +40,11 @@ impl Catalog for iced_core::Theme {
 
  
 pub mod wrapper {
+    use std::borrow::Borrow;
+
     use iced::Theme;
     use iced_core::{layout::Node, mouse::Cursor, Element, Length, Size, Vector, Widget};
-    use iced_widget::{button, container, renderer::wgpu::{self, primitive::Renderer}};
+    use iced_widget::{button, container, renderer::wgpu::{self, primitive::Renderer}, Button, Container};
  
     use crate::{Cell, CellMessage, Grid, GridMessage};
  
@@ -54,7 +56,7 @@ pub mod wrapper {
     ) -> Element<'a, Message, Theme, iced_widget::Renderer>
     where
         
-        Theme: super::Catalog<Themes = iced_core::Theme> + Clone + 'a,
+        Theme: super::Catalog<Themes = iced_core::Theme> + iced_widget::text::Catalog  + iced_widget::container::Catalog + Clone + 'a,
         Message: 'a,
         iced_core::Element<'a, Message, Theme, iced_widget::Renderer>: From<Grid<Message, Theme>>
     {
@@ -86,21 +88,6 @@ pub mod wrapper {
     }
     
     
- 
-    
- 
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
     
     
  
@@ -130,23 +117,20 @@ pub mod wrapper {
     }
     impl<'a, Message, Theme> Widget<Message, Theme, iced_widget::Renderer> for Grid<Message, Theme>
     where
-    
         
-        
-        
-        Theme: super::Catalog<Themes = iced_core::Theme> + Clone,
+        Theme: super::Catalog<Themes = iced_core::Theme> + iced_widget::container::Catalog + iced_widget::text::Catalog + Clone,
         iced_core::Element<'a, Message, Theme, iced_widget::Renderer>: From<Grid<Message, Theme>>,
         
     {
             fn size(&self) -> Size<Length> {
-               // let element = self.to_element();
-               // element.as_widget().size()
+               
+               
                Size::new(Length::Fixed(self.width), Length::Fixed(self.height))
             }
             fn layout(
                 &self,
-                _tree: &mut iced_core::widget::Tree,
-                _renderer: &iced_widget::Renderer,
+                tree: &mut iced_core::widget::Tree,
+                renderer: &iced_widget::Renderer,
                 limits: &iced_core::layout::Limits,
             ) -> iced_core::layout::Node {
                 let max_size = limits.max();
@@ -154,35 +138,59 @@ pub mod wrapper {
                 let height = self.height.min(max_size.height);
             
                 let rows = self.rows.len();
-                let cols = self.rows.get(0).map(|row| row.cells.len()).unwrap_or(0);
+                let cols = self.rows.get(0).map_or(0, |row| row.cells.len());
             
                 if rows == 0 || cols == 0 {
                     return iced_core::layout::Node::new(iced_core::Size::ZERO);
                 }
             
-                let cell_width = 20.0;
-                let cell_height = 20.0;
-                let total_cell_width = cell_width * cols as f32;
-                let total_cell_height = cell_height * rows as f32;
-            
-                let horizontal_spacing = ((width - total_cell_width).max(0.0)) / (cols - 1).max(1) as f32;
-                let vertical_spacing = ((height - total_cell_height).max(0.0)) / (rows - 1).max(1) as f32;
+                let cell_width: f32 = 20.0;
+                let cell_height: f32 = 20.0;
+                let collum_distance: f32 = 20.0; 
+                let row_distance: f32 = 20.0; 
             
                 let mut children = Vec::new();
             
-                for (row_index, row) in self.rows.iter().enumerate() {
+                for row_index in 0..rows {
                     for col_index in 0..cols {
-                        let position = iced_core::Point {
-                            x: col_index as f32 * (cell_width + horizontal_spacing),
-                            y: row_index as f32 * (cell_height + vertical_spacing),
+                        let size = iced_core::Size {
+                            width: cell_width,
+                            height: cell_height,
                         };
             
-                        let mut child = iced_core::layout::Node::new(iced_core::Size::new(cell_width, cell_height));
+                        let position = iced_core::Point {
+                            x: col_index as f32 * (cell_width + collum_distance),
+                            y: row_index as f32 * (cell_height + row_distance),
+                        };
+            
+                        let mut child = iced_core::layout::Node::new(size);
                         children.push(child.move_to(position));
                     }
-                }
+                }  
+                //iced_core::widget::tree::State::Some(Box::new("x"))
+                let new_container: Container<'_, Message, Theme, iced_widget::Renderer> = container("Test");
+                tree.children = self
+                    .rows
+                    .iter()
+                    .flat_map(|row| {
+                        row.cells.iter().map(|cell: &Cell<'_>| match cell {
+                                Cell::Container(container) => {
+                                    println!("E");
+                                    iced_core::widget::Tree { tag: container.tag(), state: container.state(), children: container.children() }
+                                },
+                            _ => {
+                                println!("e");
+                                //let new_container: Container<'_, Message, Theme, iced_widget::Renderer> = container("Test");
+                                iced_core::widget::Tree { tag: new_container.tag(), state: new_container.state(), children: new_container.children() }
+                            }
+                        })
+                    })
+                    .collect();
             
-                iced_core::layout::Node::with_children(iced_core::Size::new(width, height), children)
+                iced_core::layout::Node::with_children(
+                    iced_core::Size::new(width, height),
+                    children,
+                )
             }
             
             
@@ -209,20 +217,6 @@ pub mod wrapper {
                             .map(|child| child.bounds())
                         {
                             match cell {
-                                _ => {}  
-                                
-                                Cell::Button(button) => {
-                                    
-                                    button.draw(         
-                                        tree,
-                                        renderer,
-                                        &theme.resolve_theme(),
-                                        style,
-                                        layout,
-                                        cursor,
-                                        viewport,
-                                    );
-                                }
                                 Cell::Container(container) => {
                                     container.draw(
                                         tree,
@@ -234,6 +228,10 @@ pub mod wrapper {
                                         viewport,
                                     );
                                 }
+                                _ => {
+                                    print!("E")
+                                }  
+                                
                             }
                         }
                     }
@@ -242,6 +240,19 @@ pub mod wrapper {
             
     }
     
+
+    impl<'a, Inner, Theme, Renderer> Borrow<dyn Widget<CellMessage, Theme, Renderer> + 'a> for Wrapper<'a, Inner, Theme>
+    where
+        Wrapper<'a, Inner, Theme>: iced_core::Widget<CellMessage, Theme, Renderer>,
+        Inner: Widget<CellMessage, Theme, Renderer> + ?Sized + 'a,
+        Renderer: iced_core::Renderer + 'a,
+        Theme: super::Catalog<Themes = iced_core::Theme> + 'a,
+    {
+        fn borrow(&self) -> &(dyn Widget<CellMessage, Theme, Renderer> + 'a) {
+            self
+        }
+    }
+
     impl<'a, Inner, Message, Theme> Widget<Message, Theme, iced_widget::Renderer>
         for Wrapper<'a, Inner, Theme>
     where
