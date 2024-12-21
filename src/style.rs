@@ -1,18 +1,18 @@
 use iced::Color;
-use iced_core::Widget;
 use iced_widget::container;
-use wrapper::Wrapper;
+ 
+ 
  
 pub trait Catalog 
  
  
 {
-    // fn from_style(style: Self::Style) -> Self;
+    
     type Style: Default + Clone;
     type Themes;
     
-    fn body(&self, style: &Self::Style) -> Self::Style;
-    fn cell(&self, _row: usize, _col: usize) -> Self::Style;
+    fn body(&self, style: &Self::Style) -> container::Style;
+    fn cell(&self, _row: usize, _col: usize) -> container::Style;
     fn resolve_theme(&self) -> Self::Themes;
 }
  
@@ -40,25 +40,23 @@ impl Catalog for iced_core::Theme {
 
  
 pub mod wrapper {
-    use iced::{Font, Pixels, Theme};
-    use iced_core::{layout::Node, mouse::Cursor, text::Renderer, Element, Length, Size, Vector, Widget};
-    use iced_widget::{button, canvas::path::lyon_path::geom::euclid::default, container, renderer::wgpu::{self}};
+    use iced::Theme;
+    use iced_core::{layout::Node, mouse::Cursor, Element, Length, Size, Vector, Widget};
+    use iced_widget::{button, container, renderer::wgpu::{self, primitive::Renderer}};
  
-    use crate::{Cell, Grid, GridMessage};
-
-    use super::renderer;
+    use crate::{Cell, CellMessage, Grid, GridMessage};
  
-    pub fn style<'a, Message, Theme, Renderer>
+    pub fn style<'a, Message, Theme>
     (
         content: &'a mut Grid<Message, Theme>,
         theme: Theme,
         style: <Theme as super::Catalog>::Style,
-    ) -> Element<'a, Message, Theme, crate::Renderer>
+    ) -> Element<'a, Message, Theme, iced_widget::Renderer>
     where
-        //Renderer: iced_core::Renderer + 'a,
-        Theme: super::Catalog<Themes = iced_core::Theme, Style = iced_widget::container::Style> + Clone + 'a,
+        
+        Theme: super::Catalog<Themes = iced_core::Theme> + Clone + 'a,
         Message: 'a,
-        iced_core::Element<'a, Message, Theme, crate::Renderer>: From<Grid<Message, Theme>>
+        iced_core::Element<'a, Message, Theme, iced_widget::Renderer>: From<Grid<Message, Theme>>
     {
         Element::new(
             Wrapper {
@@ -74,26 +72,43 @@ pub mod wrapper {
     pub struct Style;
 
     impl Style {
-        // Implement methods for Style, similar to what was done in Target::Style
+        
         pub fn appearance<Theme>(
             &self,
             theme: &Theme,
             style: &<Theme as super::Catalog>::Style,
         ) -> container::Style
         where
-           // Theme: super::Catalog,
-            Theme: super::Catalog<Style = iced_widget::container::Style>,
+            Theme: super::Catalog,
         {
-            theme.body(style) // This can stay the same if it applies to the new Style struct
+            theme.body(style) 
         }
     }
-
+    
+    
  
-    impl<'a, Inner, Message, Theme, Renderer> From<Wrapper<'a, Inner, Theme>>
-    for Element<'a, Message, Theme, Renderer>
+    
+ 
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+ 
+    impl<'a, Inner, Message, Theme> From<Wrapper<'a, Inner, Theme>>
+    for Element<'a, Message, Theme, iced_widget::Renderer>
         where
-            Inner: Widget<Message, Theme, Renderer> + 'a,
-            Renderer: iced_core::Renderer + 'a,
+            Inner: Widget<Message, Theme, iced_widget::Renderer> + 'a,
+            
             Theme: super::Catalog<Themes = iced_core::Theme> + 'a,
             Message: 'a,
         {
@@ -101,64 +116,137 @@ pub mod wrapper {
                 Element::new(wrapper)
             }
     }
+ 
     pub struct Wrapper<'a, Inner, Theme>
     where
         Inner: ?Sized,
         Theme: super::Catalog<Themes = iced_core::Theme>,
     {
         pub content: &'a Inner,
-       // pub target: Target,
+       
         pub theme: Theme,
         pub style: <Theme as super::Catalog>::Style,
         pub target: Style,
     }
-
-    impl<'a, Message, Theme, Renderer> Widget<Message, Theme, Renderer> for Grid<Message, Theme>
+    impl<'a, Message, Theme> Widget<Message, Theme, iced_widget::Renderer> for Grid<Message, Theme>
     where
-        Renderer: iced_core::Renderer,
-        //Renderer: iced::advanced::Renderer + iced_core::text::Renderer<Font = iced_core::Font>,
-        Theme: super::Catalog<Style = iced_widget::container::Style, Themes = iced::Theme> + Clone,
+    
+        
+        
+        
+        Theme: super::Catalog<Themes = iced_core::Theme> + Clone,
+        iced_core::Element<'a, Message, Theme, iced_widget::Renderer>: From<Grid<Message, Theme>>,
+        
     {
-        fn layout(
-            &self,
-            tree: &mut iced_core::widget::Tree,
-            renderer: &Renderer,
-            limits: &iced_core::layout::Limits,
-        ) -> iced_core::layout::Node {
-            self.to_element().as_widget().layout(tree, renderer, limits)
-        }
             fn size(&self) -> Size<Length> {
-                //let element = self.to_element();
-                self.to_element().as_widget().size()
+               // let element = self.to_element();
+               // element.as_widget().size()
+               Size::new(Length::Fixed(self.width), Length::Fixed(self.height))
+            }
+            fn layout(
+                &self,
+                _tree: &mut iced_core::widget::Tree,
+                _renderer: &iced_widget::Renderer,
+                limits: &iced_core::layout::Limits,
+            ) -> iced_core::layout::Node {
+                let max_size = limits.max();
+                let width = self.width.min(max_size.width);
+                let height = self.height.min(max_size.height);
+            
+                let rows = self.rows.len();
+                let cols = self.rows.get(0).map(|row| row.cells.len()).unwrap_or(0);
+            
+                if rows == 0 || cols == 0 {
+                    return iced_core::layout::Node::new(iced_core::Size::ZERO);
+                }
+            
+                let cell_width = 20.0;
+                let cell_height = 20.0;
+                let total_cell_width = cell_width * cols as f32;
+                let total_cell_height = cell_height * rows as f32;
+            
+                let horizontal_spacing = ((width - total_cell_width).max(0.0)) / (cols - 1).max(1) as f32;
+                let vertical_spacing = ((height - total_cell_height).max(0.0)) / (rows - 1).max(1) as f32;
+            
+                let mut children = Vec::new();
+            
+                for (row_index, row) in self.rows.iter().enumerate() {
+                    for col_index in 0..cols {
+                        let position = iced_core::Point {
+                            x: col_index as f32 * (cell_width + horizontal_spacing),
+                            y: row_index as f32 * (cell_height + vertical_spacing),
+                        };
+            
+                        let mut child = iced_core::layout::Node::new(iced_core::Size::new(cell_width, cell_height));
+                        children.push(child.move_to(position));
+                    }
+                }
+            
+                iced_core::layout::Node::with_children(iced_core::Size::new(width, height), children)
             }
             
             
- 
             fn draw(
                 &self,
                 tree: &iced_core::widget::Tree,
-                renderer: &mut Renderer,
+                renderer: &mut iced_widget::Renderer,                
                 theme: &Theme,
                 style: &iced_core::renderer::Style,
                 layout: iced_core::Layout<'_>,
                 cursor: iced_core::mouse::Cursor,
-                viewport: &iced::Rectangle,
+                viewport: &iced_core::Rectangle,
             ) {
-                self.to_element().as_widget().draw(tree, renderer, theme, style, layout, cursor, viewport);
-            }
+                let rows = self.rows.len();
+                let cols = self.rows.get(0).map_or(0, |row| row.cells.len());
             
+                for (row_index, row) in self.rows.iter().enumerate() {
+                    for (col_index, cell) in row.cells.iter().enumerate() {
+                        let child_index = row_index * cols + col_index;
             
-                // Optionally draw additional content by delegating
-                // self.to_element().as_widget().draw(tree, renderer, theme, style, layout, cursor, viewport);
-            }
-                
+                        if let Some(bounds) = layout
+                            .children()
+                            .nth(child_index)
+                            .map(|child| child.bounds())
+                        {
+                            match cell {
+                                _ => {}  
+                                
+                                Cell::Button(button) => {
+                                    
+                                    button.draw(         
+                                        tree,
+                                        renderer,
+                                        &theme.resolve_theme(),
+                                        style,
+                                        layout,
+                                        cursor,
+                                        viewport,
+                                    );
+                                }
+                                Cell::Container(container) => {
+                                    container.draw(
+                                        tree,
+                                        renderer,
+                                        &theme.resolve_theme(),
+                                        style,
+                                        layout,
+                                        cursor,
+                                        viewport,
+                                    );
+                                }
+                            }
+                        }
+                    }
+                }
+            }     
+            
     }
-
-    impl<'a, Inner, Message, Theme, Renderer> Widget<Message, Theme, Renderer>
+    
+    impl<'a, Inner, Message, Theme> Widget<Message, Theme, iced_widget::Renderer>
         for Wrapper<'a, Inner, Theme>
     where
-        Inner: Widget<Message, Theme, Renderer> + ?Sized,
-        Renderer: iced_core::Renderer,
+        Inner: Widget<Message, Theme, iced_widget::Renderer> + ?Sized,
+        
         Theme: super::Catalog<Themes = iced_core::Theme>,
     {
         fn size(&self) -> iced_core::Size<iced_core::Length> {
@@ -168,7 +256,7 @@ pub mod wrapper {
         fn layout(
             &self,
             tree: &mut iced_core::widget::Tree,
-            renderer: &Renderer,
+            renderer: &iced_widget::Renderer,
             limits: &iced_core::layout::Limits,
         ) -> iced_core::layout::Node {
             self.content.layout(tree, renderer, limits)
@@ -177,7 +265,7 @@ pub mod wrapper {
         fn draw(
             &self,
             tree: &iced_core::widget::Tree,
-            renderer: &mut Renderer,
+            renderer: &mut iced_widget::Renderer,
             theme: &Theme,
             style: &iced_core::renderer::Style,
             layout: iced_core::Layout<'_>,
@@ -190,5 +278,44 @@ pub mod wrapper {
                 .draw(tree, renderer, theme, style, layout, cursor, viewport);
         }
  
-
+ 
+        fn tag(&self) -> iced_core::widget::tree::Tag {
+            self.content.tag()
+        }
+ 
+        fn state(&self) -> iced_core::widget::tree::State {
+            self.content.state()
+        }
+ 
+        fn children(&self) -> Vec<iced_core::widget::Tree> {
+            self.content.children()
+        }
+ 
+        fn diff(&self, tree: &mut iced_core::widget::Tree) {
+            self.content.diff(tree)
+        }
+ 
+        fn operate(
+            &self,
+            state: &mut iced_core::widget::Tree,
+            layout: iced_core::Layout<'_>,
+            renderer: &iced_widget::Renderer,
+            operation: &mut dyn iced_core::widget::Operation,
+        ) {
+            self.content.operate(state, layout, renderer, operation);
+        }
+ 
+        fn mouse_interaction(
+            &self,
+            state: &iced_core::widget::Tree,
+            layout: iced_core::Layout<'_>,
+            cursor: iced_core::mouse::Cursor,
+            viewport: &iced_core::Rectangle,
+            renderer: &iced_widget::Renderer,
+        ) -> iced_core::mouse::Interaction {
+            self.content.mouse_interaction(state, layout, cursor, viewport, renderer)
+        }
     }
+ 
+ 
+}
