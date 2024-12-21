@@ -15,7 +15,8 @@ pub trait Catalog
     fn cell(&self, _row: usize, _col: usize) -> container::Style;
     fn resolve_theme(&self) -> Self::Themes;
 }
- 
+
+
 impl Catalog for iced_core::Theme {
     type Style = container::Style;
     type Themes = iced_core::Theme;
@@ -40,7 +41,7 @@ impl Catalog for iced_core::Theme {
 
  
 pub mod wrapper {
-    use std::borrow::Borrow;
+    use std::borrow::{Borrow, BorrowMut};
 
     use iced::Theme;
     use iced_core::{layout::Node, mouse::Cursor, Element, Length, Size, Vector, Widget};
@@ -48,6 +49,54 @@ pub mod wrapper {
  
     use crate::{Cell, CellMessage, Grid, GridMessage};
  
+    fn traverse_tree(tree: &iced_core::widget::Tree) {
+        // Perform operations on the current node
+        // For example, print the tag of the node
+        println!("start");
+        println!("{:?}", tree.state);
+        println!("{:?}", tree.tag);
+        println!("end");
+        // Recursively traverse child nodes
+        for child in &tree.children {
+            traverse_tree(child);
+        }
+    }
+    // fn filter_layout(layout: iced_core::Layout<'_>) -> iced_core::layout::Node {
+    //     // Collect all children except the first, converting Layout to Node
+    //     let filtered_children: Vec<iced_core::layout::Node> = layout
+    //         .children()
+    //         .enumerate()
+    //         .filter_map(|(index, child)| {
+    //             if index > 0 {
+    //                 Some(iced_core::layout::Node::new(child.bounds().size())) // Convert Layout to Node
+    //             } else {
+    //                 None
+    //             }
+    //         })
+    //         .collect();
+    
+    //     // Construct a new Node with the filtered children
+    //     iced_core::layout::Node::with_children(
+    //         layout.bounds().size(),
+    //         filtered_children, // Pass the filtered children
+    //     )
+    // }
+    fn construct_new_tree(tree: &iced_core::widget::Tree) -> iced_core::widget::Tree {
+        let mut new_tree = iced_core::widget::Tree::empty(); // Start with an empty tree
+    
+        // Iterate through the original tree's children
+        for (index, child) in tree.children.iter().enumerate() {
+            if index > 0 {
+                // Recursively construct a new tree for the child
+                let new_child = construct_new_tree(child);
+                new_tree.children.push(new_child);
+            }
+        }
+    
+        new_tree
+    }
+    
+
     pub fn style<'a, Message, Theme>
     (
         content: &'a mut Grid<Message, Theme>,
@@ -127,6 +176,7 @@ pub mod wrapper {
                
                Size::new(Length::Fixed(self.width), Length::Fixed(self.height))
             }
+
             fn layout(
                 &self,
                 tree: &mut iced_core::widget::Tree,
@@ -146,76 +196,145 @@ pub mod wrapper {
             
                 let cell_width: f32 = 20.0;
                 let cell_height: f32 = 20.0;
-                let collum_distance: f32 = 20.0; 
-                let row_distance: f32 = 20.0; 
+                let column_distance: f32 = 20.0;
+                let row_distance: f32 = 20.0;
             
-                let mut children = Vec::new();
+                tree.children = self.rows
+                .iter()
+                .flat_map(|row| {
+                    row.cells.iter().map(|cell: &Cell<'_>| match cell {
+                        Cell::Container(container) => {
+                            let cloned_container = container.clone();
+                            let wrapper = Wrapper {
+                                content: cloned_container,
+                                theme: self.theme.clone(),
+                                style: self.style.clone(),
+                                target: Style,
+                            };
             
-                for row_index in 0..rows {
-                    for col_index in 0..cols {
-                        let size = iced_core::Size {
-                            width: cell_width,
-                            height: cell_height,
-                        };
+                            let tree = iced_core::widget::Tree {
+                                tag: wrapper.content.tag(),
+                                state: wrapper.content.state(),
+                                children: wrapper.content.children(),
+                            };
             
-                        let position = iced_core::Point {
-                            x: col_index as f32 * (cell_width + collum_distance),
-                            y: row_index as f32 * (cell_height + row_distance),
-                        };
+                            tree // You're moving tree here
+                        },
+                        _ => {
+                            let new_wrapper = Wrapper {
+                                content: &container("E"),
+                                theme: self.theme.clone(),
+                                style: self.style.clone(),
+                                target: Style,
+                            };
             
-                        let mut child = iced_core::layout::Node::new(size);
-                        children.push(child.move_to(position));
-                    }
-                }  
-                //iced_core::widget::tree::State::Some(Box::new("x"))
-                let new_container: Container<'_, Message, Theme, iced_widget::Renderer> = container("Test");
-                tree.children = self
-                    .rows
-                    .iter()
-                    .flat_map(|row| {
-                        row.cells.iter().map(|cell: &Cell<'_>| match cell {
-                                Cell::Container(container) => {
-                                    println!("E");
-                                    iced_core::widget::Tree { tag: container.tag(), state: container.state(), children: container.children() }
-                                },
-                            _ => {
-                                println!("e");
-                                //let new_container: Container<'_, Message, Theme, iced_widget::Renderer> = container("Test");
-                                iced_core::widget::Tree { tag: new_container.tag(), state: new_container.state(), children: new_container.children() }
-                            }
-                        })
+                            let mut tree = iced_core::widget::Tree {
+                                tag: new_wrapper.tag(),
+                                state: new_wrapper.state(),
+                                children: new_wrapper.children(),
+                            };
+            
+                            tree.diff(new_wrapper);
+            
+                            tree // You're moving tree here
+                        }
                     })
-                    .collect();
+                })
+                .collect();
             
+            
+
+
+                let mut children = Vec::new();
+                //tree.children.resize(rows * cols, Default::default());
+            
+                for (row_index, row) in self.rows.iter().enumerate() {
+                    for (col_index, cell) in row.cells.iter().enumerate() {
+                        let index = row_index * cols + col_index;
+                        let child_tree = &mut tree.children[index];
+            
+                        match cell {
+                            Cell::Container(container) => {
+                                // Define the position for this container based on its grid location
+                                let position = iced_core::Point {
+                                    x: col_index as f32 * (cell_width + column_distance),
+                                    y: row_index as f32 * (cell_height + row_distance),
+                                };
+                            
+                                // Define the size of the container
+                                let size = iced_core::Size::new(cell_width, cell_height);
+                            
+                                // Create a new Node manually
+                                let mut container_node = iced_core::layout::Node::new(size);
+                                //let mut container_node2 = iced_core::layout::Node::new(size);
+                                // container_node.move_to(position);
+                            
+                                // Push the manually created node into children
+                                children.push(container_node.move_to(position));
+                                //children.push(container_node2.move_to(position));
+                                // Debug information
+                                println!("Manually created container node at position: {:?} with size: {:?}", position, size);
+                                println!("Container state: {:?}", container.state());
+                                println!("Container tag: {:?}", container.tag());
+                            },
+                            
+                            _ => {
+                                let dummy_node = iced_core::layout::Node::new(Size::new(cell_width, cell_height));
+                                let position = iced_core::Point {
+                                    x: col_index as f32 * (cell_width + column_distance),
+                                    y: row_index as f32 * (cell_height + row_distance),
+                                };
+                                let mut dummy_node = dummy_node.clone();
+                               // println!("{:?}", container.state());
+                                // println!("{:?}", container.state());
+                                //println!("{:?}", container.tag());
+                                
+                                children.push(dummy_node.move_to(position));
+                            }
+                        }
+                    }
+                }
+                // if !children.is_empty() {
+                //     children.remove(0); // Remove the first Node
+                // }
+                //iced_core::layout::Node::
                 iced_core::layout::Node::with_children(
                     iced_core::Size::new(width, height),
                     children,
                 )
             }
             
+
+            
             
             fn draw(
                 &self,
                 tree: &iced_core::widget::Tree,
-                renderer: &mut iced_widget::Renderer,                
+                renderer: &mut iced_widget::Renderer,
                 theme: &Theme,
                 style: &iced_core::renderer::Style,
                 layout: iced_core::Layout<'_>,
                 cursor: iced_core::mouse::Cursor,
                 viewport: &iced_core::Rectangle,
             ) {
+                // Filter the layout to exclude the first Node
+               // let filtered_layout = filter_layout(layout);
+            
                 let rows = self.rows.len();
                 let cols = self.rows.get(0).map_or(0, |row| row.cells.len());
+                println!("A");
+      
+                traverse_tree(&tree);
             
                 for (row_index, row) in self.rows.iter().enumerate() {
                     for (col_index, cell) in row.cells.iter().enumerate() {
                         let child_index = row_index * cols + col_index;
             
-                        if let Some(bounds) = layout
-                            .children()
-                            .nth(child_index)
-                            .map(|child| child.bounds())
-                        {
+                    if let Some(bounds) = layout
+                        .children()
+                        .nth(child_index)
+                        .map(|child| child.bounds())
+                    {
                             match cell {
                                 Cell::Container(container) => {
                                     container.draw(
@@ -229,17 +348,23 @@ pub mod wrapper {
                                     );
                                 }
                                 _ => {
-                                    print!("E")
-                                }  
-                                
+                                    print!("A")
+                                }
                             }
                         }
                     }
                 }
-            }     
-            
+            }
     }
-    
+              // let new_tree = construct_new_tree(tree);
+             
+                            // Use the filtered layout
+                        /*
+                                   if let Some(bounds) = filtered_layout
+                        .children()
+                        .get(child_index) // Use `.get()` to access the child safely
+                        .map(|child| child.bounds())
+                    { */
 
     impl<'a, Inner, Theme, Renderer> Borrow<dyn Widget<CellMessage, Theme, Renderer> + 'a> for Wrapper<'a, Inner, Theme>
     where
