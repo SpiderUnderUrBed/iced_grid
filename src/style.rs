@@ -44,7 +44,7 @@ pub mod wrapper {
     use std::borrow::{Borrow, BorrowMut};
 
     use iced::Theme;
-    use iced_core::{layout::Node, mouse::Cursor, Element, Length, Size, Vector, Widget};
+    use iced_core::{layout::Node, mouse::Cursor, widget::Tree, Element, Length, Size, Vector, Widget};
     use iced_widget::{button, container, renderer::wgpu::{self, primitive::Renderer}, Button, Container};
  
     use crate::{Cell, CellMessage, Grid, GridMessage};
@@ -111,7 +111,7 @@ pub mod wrapper {
     {
         Element::new(
             Wrapper {
-                content,
+                content: Box::new(content),
                 target: Style,
                 theme,
                 style: content.style.clone()
@@ -153,23 +153,41 @@ pub mod wrapper {
             }
     }
  
+    /*
+        pub struct Wrapper<'a, Inner, Theme>
+    where
+        Inner: ?Sized,
+        Theme: super::Catalog<Themes = iced_core::Theme>,
+    {
+     */
+    // pub struct Wrapper<'a, Inner, Theme>
+    // where
+    //     Inner: ?Sized,
+    //     Theme: super::Catalog<Themes = iced_core::Theme>,
+    // {
+    //     pub content: Box<Inner>, // Boxed content, not a reference
+    //     pub theme: Theme,
+    //     pub style: <Theme as super::Catalog>::Style,
+    //     pub target: Style,
+    // }
+    
+    
     pub struct Wrapper<'a, Inner, Theme>
     where
         Inner: ?Sized,
         Theme: super::Catalog<Themes = iced_core::Theme>,
     {
-        pub content: &'a Inner,
+        pub content: Box<&'a Inner>,
        
         pub theme: Theme,
         pub style: <Theme as super::Catalog>::Style,
         pub target: Style,
     }
-    impl<'a, Message, Theme> Widget<Message, Theme, iced_widget::Renderer> for Grid<Message, Theme>
+    impl<'a, Message, Theme> Widget<Message, Theme, iced::Renderer>for Grid<Message, Theme>
     where
-        
-        Theme: super::Catalog<Themes = iced_core::Theme> + iced_widget::container::Catalog + iced_widget::text::Catalog + Clone,
+        Theme: super::Catalog<Themes = iced_core::Theme> + iced_widget::container::Catalog
+        + Clone + iced_widget::text::Catalog,
         iced_core::Element<'a, Message, Theme, iced_widget::Renderer>: From<Grid<Message, Theme>>,
-        
     {
             fn size(&self) -> Size<Length> {
                
@@ -180,7 +198,7 @@ pub mod wrapper {
             fn layout(
                 &self,
                 tree: &mut iced_core::widget::Tree,
-                renderer: &iced_widget::Renderer,
+                renderer: &iced::Renderer,
                 limits: &iced_core::layout::Limits,
             ) -> iced_core::layout::Node {
                 let max_size = limits.max();
@@ -198,110 +216,97 @@ pub mod wrapper {
                 let cell_height: f32 = 20.0;
                 let column_distance: f32 = 20.0;
                 let row_distance: f32 = 20.0;
-            
-                tree.children = self.rows
+                
+
+                println!("{}", tree.children.len());
+
+                self.rows.iter().for_each(|row| {
+                    if !row.cells.is_empty() {
+                        row.cells.iter().for_each(|cell: &Cell<'_>| {
+                            match cell {
+                                Cell::Text(text) => {
+                                    let widget: &dyn Widget<Message, _, _> = text;
+                                    tree.diff(widget);
+                                }
+                                Cell::Button(button) => {
+                                    let widget: &dyn Widget<_, _, _> = button;
+                                    tree.diff(widget);
+                                }
+                                Cell::Container(container) => {
+                                    let widget: &dyn Widget<_, _, _> = container;
+                                    tree.diff(widget);
+                                }
+                            }
+                        });
+                    }
+                });
+                let new_container: Container<'_, Message, Theme, iced_widget::Renderer> = container("Test");
+                tree.children = self
+                .rows
                 .iter()
                 .flat_map(|row| {
                     row.cells.iter().map(|cell: &Cell<'_>| match cell {
-                        Cell::Container(container) => {
-                            let cloned_container = container.clone();
-                            let wrapper = Wrapper {
-                                content: cloned_container,
-                                theme: self.theme.clone(),
-                                style: self.style.clone(),
-                                target: Style,
-                            };
-            
-                            let tree = iced_core::widget::Tree {
-                                tag: wrapper.content.tag(),
-                                state: wrapper.content.state(),
-                                children: wrapper.content.children(),
-                            };
-            
-                            tree // You're moving tree here
-                        },
+                            Cell::Container(container) => {
+                                iced_core::widget::Tree { tag: container.tag(), state: container.state(), children: container.children() }
+                            },
                         _ => {
-                            let new_wrapper = Wrapper {
-                                content: &container("E"),
-                                theme: self.theme.clone(),
-                                style: self.style.clone(),
-                                target: Style,
-                            };
-            
-                            let mut tree = iced_core::widget::Tree {
-                                tag: new_wrapper.tag(),
-                                state: new_wrapper.state(),
-                                children: new_wrapper.children(),
-                            };
-            
-                            tree.diff(new_wrapper);
-            
-                            tree // You're moving tree here
+                            iced_core::widget::Tree { tag: new_container.tag(), state: new_container.state(), children: new_container.children() }
                         }
                     })
                 })
                 .collect();
-            
-            
-
-
                 let mut children = Vec::new();
-                //tree.children.resize(rows * cols, Default::default());
             
                 for (row_index, row) in self.rows.iter().enumerate() {
+                    if row.cells.is_empty() {
+                        continue; // Skip empty rows
+                    }
+            
                     for (col_index, cell) in row.cells.iter().enumerate() {
                         let index = row_index * cols + col_index;
-                        let child_tree = &mut tree.children[index];
             
-                        match cell {
-                            Cell::Container(container) => {
-                                // Define the position for this container based on its grid location
-                                let position = iced_core::Point {
-                                    x: col_index as f32 * (cell_width + column_distance),
-                                    y: row_index as f32 * (cell_height + row_distance),
-                                };
-                            
-                                // Define the size of the container
-                                let size = iced_core::Size::new(cell_width, cell_height);
-                            
-                                // Create a new Node manually
-                                let mut container_node = iced_core::layout::Node::new(size);
-                                //let mut container_node2 = iced_core::layout::Node::new(size);
-                                // container_node.move_to(position);
-                            
-                                // Push the manually created node into children
-                                children.push(container_node.move_to(position));
-                                //children.push(container_node2.move_to(position));
-                                // Debug information
-                                println!("Manually created container node at position: {:?} with size: {:?}", position, size);
-                                println!("Container state: {:?}", container.state());
-                                println!("Container tag: {:?}", container.tag());
-                            },
-                            
-                            _ => {
-                                let dummy_node = iced_core::layout::Node::new(Size::new(cell_width, cell_height));
-                                let position = iced_core::Point {
-                                    x: col_index as f32 * (cell_width + column_distance),
-                                    y: row_index as f32 * (cell_height + row_distance),
-                                };
-                                let mut dummy_node = dummy_node.clone();
-                               // println!("{:?}", container.state());
-                                // println!("{:?}", container.state());
-                                //println!("{:?}", container.tag());
-                                
-                                children.push(dummy_node.move_to(position));
+                        // Safely access tree.children[index]
+                        println!("{}", tree.children.len());
+                        println!("{}", index);
+                        //if index < tree.children.len() {
+                            let child_tree = &mut tree.children[index];
+            
+                            match cell {
+                                Cell::Container(container) => {
+                                    let position = iced_core::Point {
+                                        x: col_index as f32 * (cell_width + column_distance),
+                                        y: row_index as f32 * (cell_height + row_distance),
+                                    };
+            
+                                    let size = iced_core::Size::new(cell_width, cell_height);
+            
+                                    let mut container_node = iced_core::layout::Node::new(size);
+                                    children.push(container_node.move_to(position));
+            
+                                    println!(
+                                        "Manually created container node at position: {:?} with size: {:?}",
+                                        position, size
+                                    );
+                                    println!("Container state: {:?}", container.state());
+                                    println!("Container tag: {:?}", container.tag());
+                                }
+                                _ => {
+                                    let dummy_node = iced_core::layout::Node::new(iced_core::Size::new(cell_width, cell_height));
+                                    let position = iced_core::Point {
+                                        x: col_index as f32 * (cell_width + column_distance),
+                                        y: row_index as f32 * (cell_height + row_distance),
+                                    };
+                                    let mut dummy_node = dummy_node.clone();
+                                    children.push(dummy_node.move_to(position));
+                                }
                             }
-                        }
+                        // } else {
+                        //     println!("Index {} is out of bounds for tree.children", index);
+                        // }
                     }
                 }
-                // if !children.is_empty() {
-                //     children.remove(0); // Remove the first Node
-                // }
-                //iced_core::layout::Node::
-                iced_core::layout::Node::with_children(
-                    iced_core::Size::new(width, height),
-                    children,
-                )
+                println!("Children: {}", children.len());
+                iced_core::layout::Node::with_children(iced_core::Size::new(width, height), children)
             }
             
 
@@ -322,14 +327,15 @@ pub mod wrapper {
             
                 let rows = self.rows.len();
                 let cols = self.rows.get(0).map_or(0, |row| row.cells.len());
-                println!("A");
+                //println!("A");
       
-                traverse_tree(&tree);
+                //traverse_tree(&tree);
+
             
                 for (row_index, row) in self.rows.iter().enumerate() {
                     for (col_index, cell) in row.cells.iter().enumerate() {
                         let child_index = row_index * cols + col_index;
-            
+                        //println!("B");
                     if let Some(bounds) = layout
                         .children()
                         .nth(child_index)
@@ -337,6 +343,8 @@ pub mod wrapper {
                     {
                             match cell {
                                 Cell::Container(container) => {
+                                    // println!("{:#?}", layout);
+                                    // println!("{:#?}", tree);
                                     container.draw(
                                         tree,
                                         renderer,
@@ -346,9 +354,10 @@ pub mod wrapper {
                                         cursor,
                                         viewport,
                                     );
+                                    print!("Matched")
                                 }
                                 _ => {
-                                    print!("A")
+                                    //print!("Not matched")
                                 }
                             }
                         }
@@ -356,30 +365,34 @@ pub mod wrapper {
                 }
             }
     }
-              // let new_tree = construct_new_tree(tree);
-             
-                            // Use the filtered layout
-                        /*
-                                   if let Some(bounds) = filtered_layout
-                        .children()
-                        .get(child_index) // Use `.get()` to access the child safely
-                        .map(|child| child.bounds())
-                    { */
 
-    impl<'a, Inner, Theme, Renderer> Borrow<dyn Widget<CellMessage, Theme, Renderer> + 'a> for Wrapper<'a, Inner, Theme>
-    where
-        Wrapper<'a, Inner, Theme>: iced_core::Widget<CellMessage, Theme, Renderer>,
-        Inner: Widget<CellMessage, Theme, Renderer> + ?Sized + 'a,
-        Renderer: iced_core::Renderer + 'a,
-        Theme: super::Catalog<Themes = iced_core::Theme> + 'a,
-    {
-        fn borrow(&self) -> &(dyn Widget<CellMessage, Theme, Renderer> + 'a) {
-            self
+    impl<'a, Inner, Theme, Renderer> Borrow<dyn iced_core::Widget<CellMessage, Theme, Renderer> + 'a>
+    for Wrapper<'a, Inner, Theme>
+        where
+            Inner: crate::style::Catalog<Themes = iced::Theme>,
+            Wrapper<'a, Inner, Theme>: Widget<CellMessage, Theme, Renderer>, // Ensure Wrapper implements Widget
+            Renderer: iced_core::Renderer + 'a,
+            Theme: crate::style::Catalog<Themes = iced_core::Theme> + 'a,
+        {
+            fn borrow(&self) -> &(dyn iced_core::Widget<CellMessage, Theme, Renderer> + 'a) {
+                self
+            }
         }
-    }
-
+    // impl<'a, Inner, Theme, Renderer> Borrow<iced_widget::Button<'a, CellMessage, Theme> + 'a>
+    //     for Wrapper<'a, Inner, Theme>
+    //         where
+    //             Inner: crate::style::Catalog<Themes = iced::Theme>,
+    //             Wrapper<'a, Inner, Theme>: Widget<CellMessage, Theme, Renderer>, // Ensure Wrapper implements Widget
+    //             Renderer: iced_core::Renderer + 'a,
+    //             Theme: crate::style::Catalog<Themes = iced_core::Theme> + 'a,
+    //         {
+    //             fn borrow(&self) -> &(dyn iced_core::Widget<CellMessage, Theme, Renderer> + 'a) {
+    //                 self
+    //             }
+    //         }
+                
     impl<'a, Inner, Message, Theme> Widget<Message, Theme, iced_widget::Renderer>
-        for Wrapper<'a, Inner, Theme>
+        for Wrapper<'_, Inner, Theme>
     where
         Inner: Widget<Message, Theme, iced_widget::Renderer> + ?Sized,
         
@@ -452,6 +465,50 @@ pub mod wrapper {
             self.content.mouse_interaction(state, layout, cursor, viewport, renderer)
         }
     }
- 
+   
  
 }
+             
+                // tree.children = self.rows
+                // .iter()
+                // .flat_map(|row| {
+                //     row.cells.iter().map(|cell: &Cell<'_>| match cell {
+                //         Cell::Container(container) => {
+                //             let cloned_container = container.clone();
+                //             let wrapper = Wrapper {
+                //                 content: cloned_container,
+                //                 theme: self.theme.clone(),
+                //                 style: self.style.clone(),
+                //                 target: Style,
+                //             };
+                            
+            
+                //             let tree = iced_core::widget::Tree {
+                //                 tag: wrapper.content.tag(),
+                //                 state: wrapper.content.state(),
+                //                 children: wrapper.content.children(),
+                //             };
+            
+                //             tree // You're moving tree here
+                //         },
+                //         _ => {
+                //             let new_wrapper = Wrapper {
+                //                 content: &container("E"),
+                //                 theme: self.theme.clone(),
+                //                 style: self.style.clone(),
+                //                 target: Style,
+                //             };
+            
+                //             let mut tree = iced_core::widget::Tree {
+                //                 tag: new_wrapper.tag(),
+                //                 state: new_wrapper.state(),
+                //                 children: new_wrapper.children(),
+                //             };
+            
+                //             tree.diff(new_wrapper);
+            
+                //             tree // You're moving tree here
+                //         }
+                //     })
+                // })
+                // .collect();

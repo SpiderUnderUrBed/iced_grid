@@ -46,13 +46,27 @@ pub struct RowData {
 
 impl RowData {
     pub fn push_text(&mut self, content: String) {
-        self.cells.push(Cell::Text(Text::new(content)));
+        //self.cells.push(Cell::Text(Text::new(content)));
+        let text =  iced::widget::Text::new("Hello, World!");
+
+        // Wrap it in a Wrapper
+        // let wrapper: Wrapper<'_, iced::widget::Text<'_, Theme, iced::Renderer>, Theme> = Wrapper {
+        //     content: Box::new(&text),
+        //     theme: self.theme.clone(),
+        //     style: self.style.clone(),
+        //     target: Style,
+        // };
+    
+        // Cast the wrapper to a `&dyn Widget<Message, Theme, Renderer>`
+        let widget: &dyn iced_core::Widget<CellMessage, Theme, iced::Renderer> = &text;
+        self.cells.push(Cell::Text(text));
     }
 
     pub fn push_button(&mut self, label: String, on_press: CellMessage) {
         self.cells.push(Cell::Button(Button::new(Text::new(label)).on_press(on_press)))
     }
     pub fn push_container(&mut self, container: Container<'static, CellMessage>) {
+       // let widget: &dyn iced_core::Widget<CellMessage, Theme, iced::Renderer> = &container;
         self.cells.push(Cell::Container(container));
     }
     
@@ -157,7 +171,7 @@ impl<'a, Message, Theme: style::Catalog<Themes = iced_core::Theme, Style = iced_
     pub fn to_element(&'a self) -> iced_core::Element<'a, Message, Theme, Renderer> {
         Element::new(
             Wrapper {
-                content: self,
+                content: Box::new(self),
                 target: Style,
                 theme: self.theme.clone(),
                 style: self.style.clone(),
