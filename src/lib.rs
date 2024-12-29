@@ -1,15 +1,19 @@
+use iced::{
+    widget::{Button, Text},
+    Element, Theme,
+};
 
+use iced_widget::{
+    container, scrollable, Column, Row 
 
-use iced::{Element, Size, Theme};
-use iced_widget::{button, container, scrollable, Button, Column, Container, Row, Text};
+};
 
 use std::sync::Arc;
 use std::cell::RefCell;
-use crate::style::wrapper::Style;
-use style::wrapper::Wrapper;
+
+use style::wrapper::{Target, Wrapper};
 pub use style::Catalog;
 pub mod style;
-
 
 #[derive(Debug, Clone)]
 pub enum CellMessage {
@@ -24,55 +28,65 @@ pub enum GridMessage {
     Cell(usize, usize, CellMessage),
 }
 
-//#[derive(Debug)]
 pub enum Cell<'a> {
-    Text(Text<'a, Theme>),
-    Button(Button<'a, CellMessage, Theme>),
-    Container(Container<'a, CellMessage>),
+    Text(String),
+    Button {
+        label: String,
+        on_press: CellMessage,
+    },
+    Container(Arc<RefCell<dyn Fn() -> Element<'a, CellMessage> + 'a>>),
 }
 
+impl<'a> Clone for Cell<'a> {
+    fn clone(&self) -> Self {
+        match self {
+            Cell::Text(content) => Cell::Text(content.clone()),
+            Cell::Button { label, on_press } => Cell::Button {
+                label: label.clone(),
+                on_press: on_press.clone(),
+            },
+            Cell::Container(container) => {
+                Cell::Container(Arc::clone(container))
+            }
+        }
+    }
+}
 
-#[derive(Default)]
+impl Cell<'_> {
+    pub fn view(&self) -> Element<CellMessage> {
+        let element = match self {
+            Cell::Text(content) => Text::new(content.clone()).into(),
+            Cell::Button { label, on_press } => {
+                Button::new(Text::new(label.clone()))
+                    .on_press(on_press.clone())
+                    .into()
+            }
+            Cell::Container(factory) => (factory.borrow())(),
+        };
+        element
+    }
+}
+
+#[derive(Default, Clone)]
 pub struct RowData {
     pub cells: Vec<Cell<'static>>,
 }
 
-// impl From<CellMessage> for Message {
-//     fn from(cell_message: CellMessage) -> Self {
-//         match cell_message {
-//             CellMessage::Edit => Message::CellEdit,
-//             CellMessage::Remove => Message::CellRemove,
-//             CellMessage::Clicked => Message::CellClicked,
-//         }
-//     }
-// }
-
 impl RowData {
     pub fn push_text(&mut self, content: String) {
-        //self.cells.push(Cell::Text(Text::new(content)));
-        let text =  iced::widget::Text::new("Hello, World!");
-
-        // Wrap it in a Wrapper
-        // let wrapper: Wrapper<'_, iced::widget::Text<'_, Theme, iced::Renderer>, Theme> = Wrapper {
-        //     content: Box::new(&text),
-        //     theme: self.theme.clone(),
-        //     style: self.style.clone(),
-        //     target: Style,
-        // };
-    
-        // Cast the wrapper to a `&dyn Widget<Message, Theme, Renderer>`
-        let widget: &dyn iced_core::Widget<CellMessage, Theme, iced_widget::renderer::fallback::Renderer<_,_>> = &text;
-        self.cells.push(Cell::Text(text));
+        self.cells.push(Cell::Text(content));
     }
 
     pub fn push_button(&mut self, label: String, on_press: CellMessage) {
-        self.cells.push(Cell::Button(Button::new(Text::new(label)).on_press(on_press)))
+        self.cells.push(Cell::Button { label, on_press });
     }
-    pub fn push_container(&mut self, container: Container<'static, CellMessage>) {
-       // let widget: &dyn iced_core::Widget<CellMessage, Theme, iced::Renderer> = &container;
-        self.cells.push(Cell::Container(container));
+
+    pub fn push_container<F>(&mut self, factory: F)
+    where
+        F: Fn() -> Element<'static, CellMessage> + 'static,
+    {
+        self.cells.push(Cell::Container(Arc::new(RefCell::new(factory))));
     }
-    
 
     pub fn len(&self) -> usize {
         self.cells.len()
@@ -84,46 +98,62 @@ impl RowData {
 }
 
    
+#[derive(Clone)]
 pub struct Grid<Message, Theme>
 where
     Theme: style::Catalog,
 {
     rows: Vec<RowData>,
-    pub style: <Theme as style::Catalog>::Style,
-    pub theme: Theme,
+    style: <Theme as style::Catalog>::Style,
     on_sync: fn(scrollable::AbsoluteOffset) -> Message,
-    width: f32,
-    height: f32,
-    intrinsic_size: Size,
 }
 
-
-impl<'a, GridMessage, Theme> From<Grid<GridMessage, Theme>> for Element<'_, GridMessage, Theme>
+impl<'a, Message, Theme, Renderer> From<Grid<Message, Theme>>
+for Element<'a, Message, Theme, Renderer>
 where
-    Theme: style::Catalog + 'a,
-    GridMessage: 'a,
+   
+    Renderer: iced_core::Renderer + 'a,
+    Theme: style::Catalog + container::Catalog + scrollable::Catalog + 'a,
+    Message: 'a + Clone,
 {
-    fn from(grid: Grid<GridMessage, Theme>) -> Self {
-        Element::from(grid)
+    fn from(grid: Grid<Message, Theme>) -> Self {
+        let style = grid.style.clone(); 
+    
+        Element::new(Wrapper { 
+            content: grid.into(),
+            target: Target::Style,
+            style,
+        })
+    }    
+}
+
+impl<Message, Theme> From<iced::Element<'_, Message, Theme>> for Grid<Message, Theme>
+where
+    Theme: style::Catalog,
+{
+    fn from(_element: iced::Element<'_, Message, Theme>) -> Self {
+        
+        
+        Grid {
+            rows: Vec::new(),
+            style: Default::default(), 
+            on_sync: |_| panic!("Conversion from Element not implemented"),
+        }
     }
 }
 
-impl<'a, Message, Theme: style::Catalog<Themes = iced_core::Theme, Style = iced_widget::container::Style> + iced_widget::text::Catalog  + iced_widget::container::Catalog + Clone> Grid<Message, Theme>
-//Theme: super::Catalog<Style = iced_widget::container::Style>,
-
- {
-    pub fn new(rows: Vec<RowData>, style: <Theme as style::Catalog>::Style, on_sync: fn(scrollable::AbsoluteOffset) -> Message, width: f32, height: f32, intrinsic_size: Size, theme: Theme) -> Self {
-        Self { rows, style, on_sync, width, height, intrinsic_size, theme }
+impl<'a, Message, Theme: style::Catalog> Grid<Message, Theme> {
+    pub fn new(rows: Vec<RowData>, style: <Theme as style::Catalog>::Style, on_sync: fn(scrollable::AbsoluteOffset) -> Message ) -> Self {
+        Self { rows, style, on_sync }
     }
     
     pub fn style(&mut self, style: impl Into<<Theme as style::Catalog>::Style>) {
         self.style = style.into();
     }
     
-    //pub fn get_grid
 
     pub fn get_cell(&mut self, row_index: usize, cell_index: usize) -> Option<&mut Cell<'static>> {
-        self.rows.get_mut(row_index).and_then(|row| row.cells.get_mut(cell_index))
+        self.rows.get_mut(row_index).and_then(|row| row.get_mut(cell_index))
     }
 
     pub fn get_row(&mut self, row: usize) -> &mut RowData {
@@ -153,12 +183,13 @@ impl<'a, Message, Theme: style::Catalog<Themes = iced_core::Theme, Style = iced_
             self.rows.push(RowData::default());
         }
     }
+
+    
     
     pub fn add_cells_to_row(&mut self, row_index: usize, count: usize) {
         let row = self.get_row(row_index); 
         for _ in 0..count {
-            row.cells.push(Cell::Text(Text::new("Default"))); 
-            //"Default".to_string()
+            row.cells.push(Cell::Text("Default".to_string())); 
         }
     }
 
@@ -166,33 +197,56 @@ impl<'a, Message, Theme: style::Catalog<Themes = iced_core::Theme, Style = iced_
     pub fn add_cells_to_all_rows(&mut self, count: usize) {
         for row in &mut self.rows {
             for _ in 0..count {
-                row.cells.push(Cell::Text(Text::new("Default"))); 
+                row.cells.push(Cell::Text("Default".to_string())); 
             }
         }
     }
-//Theme: super::Catalog<Style = iced_widget::container::Style>,
-    pub fn to_element(&'a self) -> iced_core::Element<'a, _, Theme, iced_widget::renderer::fallback::Renderer<_,_>> {
-        Element::new(
-            Wrapper {
-                content: Box::new(self),
-                target: Style,
-                theme: self.theme.clone(),
-                style: self.style.clone(),
+
+
+    pub fn create_grid(&'a self) -> Column<'a, GridMessage> {
+        let mut column = Column::new().spacing(10);
+
+        for row_index in 0..self.rows.len() {
+            let mut row_view = Row::new().spacing(10);
+            for cell_index in 0..self.rows[row_index].cells.len() {
+                let cell = &self.rows[row_index].cells[cell_index];
+                let cell_view: Element<GridMessage> = match cell {
+                    Cell::Text(ref text) => {
+                        Text::new(text.clone()).into()
+                    }
+                    Cell::Button { ref label, on_press } => {
+                        Button::new(Text::new(label.clone()))
+                            .on_press(GridMessage::Cell(row_index, cell_index, on_press.clone()))
+                            .into()
+                    }
+                    Cell::Container(factory) => (factory.borrow())().map(move |cell_msg| {
+                        GridMessage::Cell(row_index, cell_index, cell_msg)
+                    }),
+                };
+                row_view = row_view.push(cell_view);
             }
-        )
+            column = column.push(row_view);
+        }
+
+        column
     }
-    
 
-
-    pub fn view(self) -> iced::Element<'a, GridMessage>
-    where
-        Message: 'a,
-        GridMessage: 'a,
-        Theme: style::Catalog<Style = iced_widget::container::Style>,
-        iced::Element<'a, GridMessage>: From<Grid<Message, Theme>>,
+    pub fn view(&'a self) -> iced::Element<'a, GridMessage> 
+    where iced_widget::container::Style: From<<Theme as style::Catalog>::Style>
     {
-        iced::Element::from(self)
+        
+        container(
+            self.create_grid()
+                .padding(10) 
+                .spacing(5), 
+        )
+        .style({
+            move |theme: &crate::Theme| self.style.clone().into() 
+        })
+ 
+        
+        
+        .into()
     }
-    
+
 }
-    
