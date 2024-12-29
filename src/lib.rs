@@ -1,8 +1,7 @@
-use iced::{
-    widget::{Button, Text}, Element, Renderer, Size, Theme
-};
 
-use iced_widget::{button, container, scrollable, Column, Container, Row};
+
+use iced::{Element, Size, Theme};
+use iced_widget::{button, container, scrollable, Button, Column, Container, Row, Text};
 
 use std::sync::Arc;
 use std::cell::RefCell;
@@ -25,17 +24,11 @@ pub enum GridMessage {
     Cell(usize, usize, CellMessage),
 }
 
-
+//#[derive(Debug)]
 pub enum Cell<'a> {
     Text(Text<'a, Theme>),
     Button(Button<'a, CellMessage, Theme>),
-    // Button {
-    //     button: 
-    //     // label: String,
-    //     // on_press: CellMessage,
-    // },
     Container(Container<'a, CellMessage>),
-    
 }
 
 
@@ -43,6 +36,16 @@ pub enum Cell<'a> {
 pub struct RowData {
     pub cells: Vec<Cell<'static>>,
 }
+
+// impl From<CellMessage> for Message {
+//     fn from(cell_message: CellMessage) -> Self {
+//         match cell_message {
+//             CellMessage::Edit => Message::CellEdit,
+//             CellMessage::Remove => Message::CellRemove,
+//             CellMessage::Clicked => Message::CellClicked,
+//         }
+//     }
+// }
 
 impl RowData {
     pub fn push_text(&mut self, content: String) {
@@ -58,7 +61,7 @@ impl RowData {
         // };
     
         // Cast the wrapper to a `&dyn Widget<Message, Theme, Renderer>`
-        let widget: &dyn iced_core::Widget<CellMessage, Theme, iced::Renderer> = &text;
+        let widget: &dyn iced_core::Widget<CellMessage, Theme, iced_widget::renderer::fallback::Renderer<_,_>> = &text;
         self.cells.push(Cell::Text(text));
     }
 
@@ -168,7 +171,7 @@ impl<'a, Message, Theme: style::Catalog<Themes = iced_core::Theme, Style = iced_
         }
     }
 //Theme: super::Catalog<Style = iced_widget::container::Style>,
-    pub fn to_element(&'a self) -> iced_core::Element<'a, Message, Theme, Renderer> {
+    pub fn to_element(&'a self) -> iced_core::Element<'a, _, Theme, iced_widget::renderer::fallback::Renderer<_,_>> {
         Element::new(
             Wrapper {
                 content: Box::new(self),
