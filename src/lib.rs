@@ -29,14 +29,8 @@ pub enum GridMessage {
 
 pub enum Cell<'a> {
     Text(Text<'a, Theme>),
-    Button(Button<'a, CellMessage, Theme>),
-    // Button {
-    //     button: 
-    //     // label: String,
-    //     // on_press: CellMessage,
-    // },
+    Button(Button<'a, CellMessage, Theme>),    
     Container(Container<'a, CellMessage>),
-    
 }
 
 
@@ -46,12 +40,15 @@ pub struct RowData {
 }
 
 impl RowData {
+    pub fn new(cells: Vec<Cell<'static>>) -> Self {
+        Self { cells }
+    }
     pub fn push_text(&mut self, content: String) {
-        //self.cells.push(Cell::Text(Text::new(content)));
+        
         let text =  iced::widget::Text::new("Hello, World!");
 
 
-        // Cast the wrapper to a `&dyn Widget<Message, Theme, Renderer>`
+        
         let widget: &dyn iced_core::Widget<CellMessage, Theme, iced::Renderer> = &text;
         self.cells.push(Cell::Text(text));
     }
@@ -60,7 +57,7 @@ impl RowData {
         self.cells.push(Cell::Button(Button::new(Text::new(label)).on_press(on_press)))
     }
     pub fn push_container(&mut self, container: Container<'static, CellMessage>) {
-       // let widget: &dyn iced_core::Widget<CellMessage, Theme, iced::Renderer> = &container;
+       
         self.cells.push(Cell::Container(container));
     }
     
@@ -74,18 +71,42 @@ impl RowData {
     }
 }
 
-   
+pub struct GridData<Message, Theme>
+where
+    Theme: style::Catalog,
+{
+    pub rows: Vec<RowData>,
+    pub style: <Theme as style::Catalog>::Style,
+    pub theme: Theme,
+    pub on_sync: fn(scrollable::AbsoluteOffset) -> Message,
+    pub width: f32,
+    pub height: f32,
+    pub intrinsic_size: Size,
+}
+
+
 pub struct Grid<Message, Theme>
 where
     Theme: style::Catalog,
 {
-    rows: Vec<RowData>,
-    pub style: <Theme as style::Catalog>::Style,
-    pub theme: Theme,
-    on_sync: fn(scrollable::AbsoluteOffset) -> Message,
-    width: f32,
-    height: f32,
-    intrinsic_size: Size,
+    pub data: GridData<Message, Theme>
+}
+
+impl<Message, Theme> Default for GridData<Message, Theme>
+where
+    Theme: style::Catalog + Default, 
+{
+    fn default() -> Self {
+        Self {
+            rows: Vec::new(), 
+            style: Default::default(), 
+            theme: Default::default(), 
+            on_sync: |_offset: scrollable::AbsoluteOffset| panic!("on_sync not initialized"), 
+            width: 0.0, 
+            height: 0.0, 
+            intrinsic_size: Size::default(), 
+        }
+    }
 }
 
 
@@ -99,68 +120,80 @@ where
     }
 }
 
-impl<'a, Message, Theme: style::Catalog<Themes = iced_core::Theme, Style = iced_widget::container::Style> + iced_widget::text::Catalog  + iced_widget::container::Catalog + Clone> Grid<Message, Theme>
-//Theme: super::Catalog<Style = iced_widget::container::Style>,
-
- {
-    // pub fn new(rows: Vec<RowData>, style: <Theme as style::Catalog>::Style, on_sync: fn(scrollable::AbsoluteOffset) -> Message, width: f32, height: f32, intrinsic_size: Size, theme: Theme) -> Self {
-    //     Self { rows, style, on_sync, width, height, intrinsic_size, theme }
-    // }
-    pub fn new<I>(rows: I, style: <Theme as style::Catalog>::Style, on_sync: fn(scrollable::AbsoluteOffset) -> Message, width: f32, height: f32, intrinsic_size: Size, theme: Theme) -> Self
+impl<Message, Theme> GridData<Message, Theme>
 where
-    I: IntoIterator<Item = RowData>,
+    Theme: style::Catalog,
 {
-    Self {
-        rows: rows.into_iter().collect(),
-        style,
-        on_sync,
-        width,
-        height,
-        intrinsic_size,
-        theme,
+    pub fn new<I>(rows: I, style: <Theme as style::Catalog>::Style, on_sync: fn(scrollable::AbsoluteOffset) -> Message, width: f32, height: f32, intrinsic_size: Size, theme: Theme) -> Self
+    where
+        I: IntoIterator<Item = RowData>,
+    {
+        Self {
+            rows: rows.into_iter().collect(),
+            style,
+            on_sync,
+            width,
+            height,
+            intrinsic_size,
+            theme,
+        }
     }
 }
 
+impl<'a, Message, Theme> Grid<Message, Theme>
+where
+    Theme: style::Catalog<Themes = iced_core::Theme, Style = iced_widget::container::Style> + iced_widget::text::Catalog + iced_widget::container::Catalog + Clone,
+{
+    pub fn new<I>(rows: I, style: <Theme as style::Catalog>::Style, on_sync: fn(scrollable::AbsoluteOffset) -> Message, width: f32, height: f32, intrinsic_size: Size, theme: Theme) -> Self
+    where
+        I: IntoIterator<Item = RowData>,
+    {
+        let data = GridData::new(rows, style, on_sync, width, height, intrinsic_size, theme);
+        
+        Self { data }
+    }
+
+
     pub fn style(&mut self, style: impl Into<<Theme as style::Catalog>::Style>) {
-        self.style = style.into();
+        self.data.style = style.into();
     }
     
-    //pub fn get_grid
+    
 
     pub fn get_cell(&mut self, row_index: usize, cell_index: usize) -> Option<&mut Cell<'static>> {
-        self.rows.get_mut(row_index).and_then(|row: &mut RowData| row.cells.get_mut(cell_index))
+        self.data.rows.get_mut(row_index).and_then(|row: &mut RowData| row.cells.get_mut(cell_index))
     }
 
     pub fn rows_mut_iter(&mut self) -> impl Iterator<Item = &mut RowData> {
-        self.rows.iter_mut()
+        self.data.rows.iter_mut()
     }
     
 
     pub fn get_row(&mut self, row: usize) -> &mut RowData {
-        if self.rows.len() <= row {
-            self.rows.resize_with(row + 1, RowData::default);
+        if self.data.rows.len() <= row {
+            self.data.rows.resize_with(row + 1, RowData::default);
         }
-        &mut self.rows[row]
+        &mut self.data.rows[row]
     }
 
     pub fn row_count(&self) -> usize {
-        self.rows.len()
+        self.data.rows.len()
     }
 
     pub fn add_row(&mut self, mut row: RowData) {
-        self.rows.push(row);
+        self.data.rows.push(row);
     }
     
     pub fn get_row_mut(&mut self, row: usize) -> Option<&mut RowData> {
-        if row < self.rows.len() {
-            Some(&mut self.rows[row])
+        if row < self.data.rows.len() {
+            Some(&mut self.data.rows[row])
         } else {
             None
         }
     }
     pub fn add_rows(&mut self, count: usize) {
         for _ in 0..count {
-            self.rows.push(RowData::default());
+            self.data.rows.push(RowData::default());
         }
     }
     
@@ -168,26 +201,26 @@ where
         let row = self.get_row(row_index); 
         for _ in 0..count {
             row.cells.push(Cell::Text(Text::new("Default"))); 
-            //"Default".to_string()
+            
         }
     }
 
     
     pub fn add_cells_to_all_rows(&mut self, count: usize) {
-        for row in &mut self.rows {
+        for row in &mut self.data.rows {
             for _ in 0..count {
                 row.cells.push(Cell::Text(Text::new("Default"))); 
             }
         }
     }
-//Theme: super::Catalog<Style = iced_widget::container::Style>,
+
     pub fn to_element(&'a self) -> iced_core::Element<'a, Message, Theme, Renderer> {
         Element::new(
             Wrapper {
                 content: Box::new(self),
                 target: Style,
-                theme: self.theme.clone(),
-                style: self.style.clone(),
+                theme: self.data.theme.clone(),
+                style: self.data.style.clone(),
             }
         )
     }
@@ -206,26 +239,25 @@ where
     
 }
     
-// pub fn from_cells(
-//     cells: Vec<Vec<Cell<'static>>>,
-//     style: <Theme as style::Catalog>::Style,
-//     on_sync: fn(scrollable::AbsoluteOffset) -> Message,
-//     width: f32,
-//     height: f32,
-//     intrinsic_size: Size,
-//     theme: Theme,
-// ) -> Self { let rows = cells
-//         .into_iter()
-//         .map(|cell_row| RowData { cells: cell_row })
-//         .collect();
 
-//     Self {
-//         rows,
-//         style,
-//         on_sync,
-//         width,
-//         height,
-//         intrinsic_size,
-//         theme,
-//     }
-// }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
