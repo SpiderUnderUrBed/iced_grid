@@ -1,142 +1,137 @@
-Here's updated documentation for your code with improved details and relevance to your latest implementation:
+# `grid` - A Grid Wrapper for `iced`
 
----
+This crate provides a thin wrapper around the `iced` library's `Column` widget, making it easier to create and manage a grid of cells. The grid is composed of cells that hold elements and their associated styles. You can customize the grid's cell dimensions, gutter spacing, and padding, as well as the individual cell styles.
 
-# `iced_grid`
-
-This library provides a grid-based UI component built with the `iced` crate. It allows developers to create and manage grids with customizable rows and cells. Each cell can represent different types of content, including text, buttons, and custom containers.
-
-## Installation
-
-Add the `iced` crate as a dependency in your `Cargo.toml`:
-
-```toml
-[dependencies]
-iced = "0.12"
-iced_grid = { path = "<path-to-iced_grid>" }
-```
-
-## Features
-
-- **Dynamic Grid Management**: Easily manage rows and cells in a grid structure.
-- **Cell Types**: Support for text, buttons, and custom containers within cells.
-- **User Interaction**: Cells can respond to interactions like clicks or edits.
-- **Custom Styling**: Support for theming and styles via the `style::Catalog` trait.
-
----
-
-## Components Overview
-
-### `Grid`
-
-The `Grid` struct is the main component that manages rows (`RowData`) and cells (`Cell`). It supports rendering, adding rows, and interacting with cells.
-
-#### Methods
-
-- **`new(rows, style, on_sync)`**: Creates a new grid instance.
-  - `rows`: Initial grid data as a `Vec<RowData>`.
-  - `style`: Custom style implementing the `Catalog` trait or `container::style`.
-  - `on_sync`: A callback for synchronizing scrollable offsets.
-
-- **`get_cell(row_index, cell_index)`**: Returns a mutable reference to a cell at the specified position, if it exists.
-  
-- **`get_row(row_index)`**: Retrieves a mutable reference to the specified row, creating new rows if needed.
-  
-- **`add_row(row)`**: Adds a new `RowData` to the grid.
-  
-- **`row_count()`**: Returns the total number of rows in the grid.
-  
-- **`view()`**: Returns an `iced::Element` for rendering the entire grid.
-
-- **`create_grid()`**: Constructs the visual representation of the grid as an `iced::Column`.
-
-- **`add_cells_to_row(row_index, count)`**  
-  Appends a specified number of default cells to the target row.
-
-- **`add_cells_to_all_rows(count)`**  
-  Adds the same number of cells to all rows.
-
-  - **`add_rows(count)`**  
-  Adds multiple rows to the grid.
-
-
----
-
-### `RowData`
-
-`RowData` represents a single row within the grid and contains a list of `Cell`s.
-
-#### Methods
-
-- **`push_text(content)`**: Adds a text cell to the row.
-  
-- **`push_button(label, on_press)`**: Adds a button cell with a label and an action.
-  
-- **`push_container(factory)`**: Adds a custom container cell using a closure to generate the content.
-
-- **`get_mut(index)`**: Returns a mutable reference to a cell at the specified index, if it exists.
-
-- **`len()`**: Returns the number of cells in the row.
-
----
+## Modules
 
 ### `Cell`
 
-`Cell` represents the smallest unit within the grid and can display text, a button, or custom content.
-
-#### Variants
-
-- **`Text(content)`**: Displays a string as plain text.
-  
-- **`Button { label, on_press }`**: Displays a clickable button with a label.
-  
-- **`Container(factory)`**: Uses a closure to render custom elements dynamically.
+The `Cell` struct represents an individual cell in the grid. It stores an `Element` (the content of the cell) and a `Style` (the style of the cell).
 
 #### Methods
 
-- **`view()`**: Returns the visual representation of the cell as an `iced::Element`.
+- **`From<E> for Cell<'a, M, T, R>`**: Converts an `Element` into a `Cell`. The style of the `Cell` is set to the default style.
+  
+- **`style`**: Allows you to set a custom style for the cell.
+
+#### Example
+
+```rust
+let cell = Cell::from(Text::new("Hello"));
+let styled_cell = cell.style(Style::default());
+```
 
 ---
 
-### `CellMessage`
+### `Factory`
 
-This enum represents possible actions related to a cell.
+The `Factory` struct is used to create grid cells. You can configure it to generate cells with a default or custom style.
 
-- **`Edit`**: Represents editing a cell.
-- **`Remove`**: Represents removing a cell.
-- **`Clicked`**: Represents a click action on a cell.
+#### Methods
 
----
+- **`from_element`**: Creates a factory from an `Element`, using the default style for the cell.
+- **`from_element_and_style`**: Creates a factory from an `Element` and a specific style.
+- **`from_factory`**: Creates a factory from a provided function that generates a `Cell`.
 
-### `GridMessage`
+#### Example
 
-This enum represents grid-level actions.
-
-- **`AddCell(row_index)`**: Adds a new cell to the specified row.
-- **`Cell(row_index, cell_index, CellMessage)`**: Handles a specific action (`CellMessage`) for a cell identified by its row and column index.
-
----
-
-### `style::Catalog`
-
-This trait defines custom styling options for the grid. The exact implementation depends on your application's requirements.
+```rust
+let factory = Factory::from_element_and_style(Text::new("Custom"), Style::default());
+```
 
 ---
 
-## Example Usage
+### `Grid`
 
-Here’s how you can use the `iced_grid` library in an `iced::Sandbox` application.
+The `Grid` struct represents a grid of cells. It supports multiple rows and provides methods to adjust the cell dimensions, gutter size, and padding. It can also be converted into an `Element` for use in an `iced` GUI.
 
-### Creating a Grid
+#### Methods
 
-Refer to the demo 
+- **`new`**: Creates a new empty grid.
+- **`with_row`**: Adds a single row to the grid.
+- **`with_rows`**: Adds multiple rows to the grid.
+- **`cell_width`**: Sets the width of each cell.
+- **`cell_height`**: Sets the height of each cell.
+- **`gutter`**: Sets the gutter (spacing) between cells.
+- **`padding`**: Sets the padding around the entire grid.
+
+#### Example
+
+```rust
+let grid = Grid::new()
+    .with_row([Factory::from_element(Text::new("A")), Factory::from_element(Text::new("B"))])
+    .cell_width(100)
+    .cell_height(100)
+    .gutter(10)
+    .padding(5);
+```
 
 ---
 
-## Contributing
+## Demo
 
-Contributions are welcome! If you find any issues or have feature suggestions, please open an issue or submit a pull request.
+This is an example of how to use the grid system to create a simple calendar layout where the current day is highlighted in red:
 
----
+```rust
+use grid::{Cell, Factory, Grid};
+use iced::{Background, Color, Element, Length, advanced::widget::Text, run, widget::{Container, container::Style}};
+use itertools::Itertools;
 
-This documentation incorporates the latest updates to your code and explains the new features comprehensively.
+struct State<'a> {
+    grid: Grid<'a, Message>,
+}
+
+impl Default for State<'_> {
+    fn default() -> Self {
+        const DAYS_PER_WEEK: usize = 7;
+        let today = 10;
+        let grid = Grid::new()
+            .with_row(["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"])
+            .with_rows(
+                (1..=31)
+                    .map(move |day| {
+                        Factory::from_factory(move || {
+                            let red = day == today;
+                            Cell::from(Text::new(day)).style(if red {
+                                Style {
+                                    background: Some(Background::Color(Color::from_rgb8(255, 0, 0))),
+                                    text_color: Some(Color::from_rgb8(255, 255, 255)),
+                                    ..Style::default()
+                                }
+                            } else {
+                                Style {
+                                    background: Some(Background::Color(Color::from_rgb8(255, 255, 255))),
+                                    text_color: Some(Color::from_rgb8(0, 0, 0)),
+                                    ..Style::default()
+                                }
+                            })
+                        })
+                    })
+                    .chunks(DAYS_PER_WEEK)
+                    .into_iter()
+                    .map(Itertools::collect_vec)
+                    .collect_vec(),
+            )
+            .cell_height(50)
+            .cell_width(50)
+            .padding(5);
+        Self { grid }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+enum Message {}
+
+fn main() {
+    run("grid", update, view).unwrap();
+}
+
+fn update(_state: &mut State, _message: Message) {}
+
+fn view<'a>(state: &'a State) -> Element<'a, Message> {
+    Container::new(&state.grid).center(Length::Fill).into()
+}
+```
+
+This example creates a grid with the days of the week and adds cells representing the dates of the month. The current day is highlighted in red with a white text color.
+
