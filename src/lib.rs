@@ -135,6 +135,36 @@ impl<'a, M: 'a, T: 'a, R: advanced::Renderer + 'a> Grid<'a, M, T, R> {
         Self::default()
     }
 
+
+    pub fn total_width(mut self, total_width: impl Into<Pixels>) -> Self {
+        let total_width = total_width.into();
+        let num_columns = self.rows.first().map_or(0, |r| r.len());
+        if num_columns > 0 {
+            let calculated_cell_width = total_width / num_columns as f32;
+            self = self.cell_width(Pixels(calculated_cell_width.into()));
+        }
+        self
+    }
+
+    /// Set the total height of the grid, calculated by multiplying the number of rows by the cell height.
+    pub fn total_height(mut self, total_height: impl Into<Pixels>) -> Self {
+        let total_height = total_height.into();
+        let num_rows = self.rows.len();
+        if num_rows > 0 {
+            let calculated_cell_height = total_height / num_rows as f32;
+            self = self.cell_height(Pixels(calculated_cell_height.into()));
+        }
+        self
+    }
+
+    /// Set the grid size by specifying both the total width and total height of the grid.
+    #[must_use]
+    pub fn grid_size(mut self, width: impl Into<Pixels>, height: impl Into<Pixels>) -> Self {
+        self = self.total_width(width);
+        self = self.total_height(height);
+        self
+    }
+
     /// Add a row to the grid.
     #[must_use]
     pub fn with_row<C: Into<Factory<'a, M, T, R>>>(
